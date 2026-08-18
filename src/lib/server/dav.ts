@@ -25,7 +25,12 @@ export interface DocMeta {
   /** Product-level cover (populated only on the product's landing metadata). */
   cover?: string;
   path: string;
-  html: string;
+  /**
+   * Rendered page body. NOT populated by index discovery — content is
+   * lazily fetched + rendered on demand via `getDoc`. Present only on docs
+   * returned from `getDoc`.
+   */
+  html?: string;
 }
 
 /** Product-level metadata from the manifest top level. */
@@ -75,6 +80,13 @@ interface Index {
   sitePassword?: string;
 }
 let indexCache: Index | null = null;
+
+/**
+ * Lazily-rendered page bodies, keyed by doc id. Populated only when a page is
+ * actually requested (see `getDoc`), so index discovery never touches page
+ * content — it fetches only the first-level subdir manifests.
+ */
+const htmlCache = new Map<string, { at: number; html: string }>();
 
 const PROPFIND_BODY = `<?xml version="1.0"?>
 <d:propfind xmlns:d="DAV:"><d:allprop/></d:propfind>`;
@@ -182,24 +194,16 @@ function titleFromPath(relPath: string): string {
     .join(' ');
 }
 
-/** Load + render a single page listed in a manifest. Throws on dangling source. */
-async function loadPage(
+/** Derive a metadata-only DocMeta entry from a manifest page spec. Cheap: no
+ * content is fetched or rendered at index time. */
+function metaFromSpec(
   relPath: string,
   spec: PageSpec,
   order: number,
   product: string
-): Promise<DocMeta> {
-  const kind = detectKind(relPath);
-  if (!kind) {
-    throw new Error(`Unsupported format for ${relPath}`);
-  }
-  const href = new URL(encodeURI(relPath), base).href;
-  const isBinary = isBinaryKind(kind);
-  const { text, buffer, lastModified } = await rawFetch(href, isBinary);
-  const html = await renderBodyAsync(kind, { text, buffer });
-  const id = relPath.replace(/\.[^/.]+$/, '');
+): DocMeta {
   return {
-    id,
+    id: relPath.replace(/\.[^/.]+$/, ''),
     title:
       (typeof spec.title === 'string' && spec.title.trim() ? spec.title.trim() : undefined) ??
       titleFromPath(relPath),
@@ -207,10 +211,27 @@ async function loadPage(
     product,
     category: (coerceString(spec.category) || 'General').trim(),
     order,
-    updated: coerceString(spec.updated) ?? lastModified,
+    updated: coerceString(spec.updated),
     path: relPath,
-    html,
   };
+}
+
+/** Lazily fetch + render a single page's body (`doc.html`), cached per TTL.
+ * This is the only place content bytes are pulled from WebDAV, so a request
+ * for one page never fetches its siblings or other products. */
+async function loadDocContent(doc: DocMeta): Promise<DocMeta> {
+  const hit = htmlCache.get(doc.id);
+  if (hit && Date.now() - hit.at < ttlMs) {
+    return { ...doc, html: hit.html };
+  }
+  const kind = detectKind(doc.path);
+  if (!kind) throw new Error(`Unsupported format for ${doc.path}`);
+  const href = new URL(encodeURI(doc.path), base).href;
+  const isBinary = isBinaryKind(kind);
+  const { text, buffer, lastModified } = await rawFetch(href, isBinary);
+  const html = await renderBodyAsync(kind, { text, buffer });
+  htmlCache.set(doc.id, { at: Date.now(), html });
+  return { ...doc, updated: doc.updated ?? lastModified, html };
 }
 
 async function buildIndex(): Promise<Index> {
@@ -234,7 +255,6 @@ async function buildIndex(): Promise<Index> {
   }
 
   for (const dir of productDirs) {
-    let manifestRel: string | undefined;
     let manifest: Manifest;
     try {
       const entries = await propfind(dir);
@@ -242,8 +262,7 @@ async function buildIndex(): Promise<Index> {
         (e) => !e.isCollection && /^docs\.ya?ml$/i.test(e.rel.split('/').pop() ?? '')
       );
       if (!yamlEntry) continue; // no manifest → contributes nothing
-      manifestRel = yamlEntry.rel;
-      manifest = await loadManifest(manifestRel);
+      manifest = await loadManifest(yamlEntry.rel);
     } catch (err) {
       console.warn(`[dav] skipping product "${dir}":`, err);
       continue;
@@ -260,11 +279,13 @@ async function buildIndex(): Promise<Index> {
       const spec = pages[i];
       if (!spec || typeof spec.source !== 'string' || !spec.source) continue;
       const relPath = `${dir}/${spec.source}`;
-      try {
-        docs.push(await loadPage(relPath, spec, i, dir));
-      } catch (err) {
-        console.warn(`[dav] skipping page "${relPath}":`, err);
+      if (!detectKind(relPath)) {
+        // Unsupported format — skip at discovery (same as before), content
+        // fetch/errors are deferred and surface only if the page is visited.
+        console.warn(`[dav] skipping page "${relPath}": unsupported format`);
+        continue;
       }
+      docs.push(metaFromSpec(relPath, spec, i, dir));
     }
   }
 
@@ -291,10 +312,19 @@ export async function getProductsMeta(): Promise<Map<string, ProductMeta>> {
   return (await getIndex()).products;
 }
 
-/** Fetch a single doc by id (path without extension). */
+/** Fetch a single doc by id (path without extension). Resolves metadata from
+ * the index, then lazily fetches + renders only that page's body. Returns
+ * undefined (→ 404) when the id is unknown or its content can't be loaded. */
 export async function getDoc(id: string): Promise<DocMeta | undefined> {
   const docs = await getDocs();
-  return docs.find((d) => d.id === id);
+  const doc = docs.find((d) => d.id === id);
+  if (!doc) return undefined;
+  try {
+    return await loadDocContent(doc);
+  } catch (err) {
+    console.warn(`[dav] failed to lazy-load "${id}":`, err);
+    return undefined;
+  }
 }
 
 /** Per-product access passwords, keyed by product name (from docs.yaml). */

@@ -176,5 +176,5 @@
 {/if}
 
 <article>
-  {@html doc.html}
+  {@html doc.html ?? ''}
 </article>
