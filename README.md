@@ -11,8 +11,11 @@ search, and per-product access control automatically from your files, and it
 runs anywhere a container runs.
 
 Because it speaks standard WebDAV, it works out of the box with most cloud
-storage and file servers. Popular examples: **Nextcloud**, **ownCloud**,
-**pCloud**, **Yandex.Disk**, **Koofr**, and **Internxt**.
+storage and file servers:
+
+- **Self-hosted**: Nextcloud, ownCloud, and any WebDAV-enabled server.
+- **Managed / hosted**: Infomaniak kDrive, pCloud, Yandex.Disk, Koofr,
+  Internxt, HiDrive, and others.
 
 See [docs/](docs/) for full technical documentation (content model,
 components, configuration).
