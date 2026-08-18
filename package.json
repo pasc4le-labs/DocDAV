@@ -13,6 +13,8 @@
     "preview": "vite preview --host 127.0.0.1 --port 4323",
     "webdav:sample": "node content-samples/serve.mjs",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "format": "biome format --write .",
     "lint": "biome lint --write .",
     "check:biome": "biome check ."
@@ -34,10 +36,12 @@
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@types/node": "^26.2.0",
+    "jszip": "^3.10.1",
     "svelte": "^5.0.0",
     "svelte-check": "^4.7.6",
     "type-fest": "^5.8.0",
     "typescript": "^5.6.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^4.1.10"
   }
 }
