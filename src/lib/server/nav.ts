@@ -1,4 +1,5 @@
 import type { DocMeta, ProductMeta } from './dav';
+import { humanize } from './text';
 
 /** Turn collection entries into nav/sidebar structures. Sidebar grouping and
  * ordering come from each page's manifest entry (`category`, list position);
@@ -24,14 +25,6 @@ export interface ProductInfo {
   cover?: string;
 }
 
-export function productLabel(name: string): string {
-  return name
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
 export function listProducts(
   docs: DocMeta[],
   meta: Map<string, ProductMeta> = new Map()
@@ -48,7 +41,7 @@ export function listProducts(
       const m = meta.get(name) ?? {};
       return {
         name,
-        label: productLabel(name),
+        label: humanize(name),
         href: `/${name}`,
         count: items.length,
         description: m.description,

@@ -1,25 +1,18 @@
 import type { Brand } from '$lib/config';
-
-function productLabel(name: string): string {
-  return name
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
-}
+import { escapeHtml, humanize } from './text';
 
 const LOCK_SVG = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
 
 /** Modernized password gate (401) — standalone HTML, no emoji. */
 export function gatePage(product: string, path: string, brand: Brand, site = false): string {
-  const display = site ? brand.name : productLabel(product);
+  const display = site ? brand.name : humanize(product);
   const heading = site ? 'Welcome back' : `${display} documentation`;
   const sub = site
     ? 'This site is protected. Enter the password to continue.'
     : `The ${display} docs are protected. Enter the password to continue.`;
 
   const brandHtml = brand.logo
-    ? `<img class="brand-logo" src="${escapeAttr(brand.logo)}" alt=""/>`
+    ? `<img class="brand-logo" src="${escapeHtml(brand.logo)}" alt=""/>`
     : `<span class="brand-name">${escapeHtml(brand.name)}</span>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"/>
@@ -51,20 +44,11 @@ button:hover{background:#27272a}
 <div class="lock">${LOCK_SVG}</div>
 <h1>${escapeHtml(heading)}</h1>
 <p class="sub">${escapeHtml(sub)}</p>
-<form method="get" action="${escapeAttr(path)}">
+<form method="get" action="${escapeHtml(path)}">
 <input type="password" name="key" placeholder="Password" autocomplete="current-password" autofocus/>
 <button type="submit">Unlock</button>
 </form>
 <div class="hint">or open a link with <code>?key=…</code></div>
 </div>
 </body></html>`;
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!
-  );
-}
-function escapeAttr(s: string): string {
-  return escapeHtml(s);
 }

@@ -3,6 +3,7 @@ import sanitizeHtml from 'sanitize-html';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import { convert as asciidoctorConvert } from 'asciidoctor';
+import { escapeHtml } from './text';
 
 /**
  * Multi-format render dispatch for drive-docs.
@@ -51,53 +52,6 @@ export function isBinaryKind(kind: ContentKind): boolean {
   return kind === 'docx' || kind === 'xlsx';
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/** Naive but sufficient CSV → rows. Handles quoted fields with commas/escaped quotes. */
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += c;
-      }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ',') {
-      row.push(field);
-      field = '';
-    } else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++;
-      row.push(field);
-      field = '';
-      if (row.some((cell) => cell.trim() !== '') || row.length > 1) rows.push(row);
-      row = [];
-    } else {
-      field += c;
-    }
-  }
-  row.push(field);
-  if (row.some((cell) => cell.trim() !== '') || row.length > 1) rows.push(row);
-  return rows;
-}
-
 /** Render a 2D array of string cells as a Markdown table (header = first row). */
 function tableToMarkdown(rows: string[][]): string {
   if (rows.length === 0) return '_Empty table._';
@@ -116,6 +70,20 @@ function tableToMarkdown(rows: string[][]): string {
   const sep = `| ${pad(header).map(() => '---').join(' | ')} |`;
   const lines = [rowToMd(header), sep, ...body.map((r) => rowToMd(r))];
   return lines.join('\n');
+}
+
+/** Render the first sheet of a workbook (CSV or XLSX) as a Markdown table.
+ * SheetJS parses both formats, so the two tabular types share one code path.
+ * Empty cells arrive as `undefined` (text-form CSV as empty strings) — normalize
+ * to '' and drop all-blank rows, matching the previous CSV behavior. */
+function sheetToMarkdown(wb: XLSX.WorkBook): string {
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  if (!sheet) return renderMd('_Empty workbook._');
+  const rows = XLSX.utils
+    .sheet_to_json<unknown[]>(sheet, { header: 1 })
+    .map((r) => r.map((c) => (c == null ? '' : String(c))))
+    .filter((r) => r.some((c) => c.trim() !== ''));
+  return renderMd(tableToMarkdown(rows));
 }
 
 /** Render a document to an HTML fragment based on its content kind. */
@@ -146,15 +114,13 @@ export function renderBody(kind: ContentKind, data: ContentData): string {
         },
       });
     case 'csv': {
-      const rows = parseCsv(data.text ?? '');
-      return renderMd(tableToMarkdown(rows));
+      // SheetJS parses RFC 4180 CSV (quoted fields, escaped quotes, CRLF).
+      const wb = XLSX.read(data.text ?? '', { type: 'string' });
+      return sheetToMarkdown(wb);
     }
     case 'xlsx': {
       const wb = XLSX.read(data.buffer ?? new ArrayBuffer(0), { type: 'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      if (!sheet) return renderMd('_Empty workbook._');
-      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
-      return renderMd(tableToMarkdown(rows as string[][]));
+      return sheetToMarkdown(wb);
     }
     default:
       return '';

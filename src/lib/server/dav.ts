@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { parse as parseYaml } from 'yaml';
 import { detectKind, isBinaryKind, renderBodyAsync } from './format';
+import { htmlDecode, humanize } from './text';
 
 /**
  * Server-only WebDAV multi-format loader for drive-docs.
@@ -91,16 +92,20 @@ const htmlCache = new Map<string, { at: number; html: string }>();
 const PROPFIND_BODY = `<?xml version="1.0"?>
 <d:propfind xmlns:d="DAV:"><d:allprop/></d:propfind>`;
 
+// Namespace-agnostic regexes for parsing a PROPFIND multistatus response.
+// Infomaniak/kDrive (like many servers) rejects `Depth: infinity` (RFC 4918
+// allows it but most implementations refuse it), so we walk the tree one
+// directory at a time with `Depth: 1` and pull `<href>` / `<collection>` out of
+// each `<response>` block ourselves. A WebDAV client library wouldn't remove
+// this constraint (lazy, per-directory discovery is inherent to our manifest
+// model), so a ~30-line regex parse is kept over adding a dependency.
+const RESPONSE_BLOCK = /<(?:[\w]+:)?response[^>]*>([\s\S]*?)<\/(?:[\w]+:)?response>/gi;
+const HREF = /<(?:[\w]+:)?href[^>]*>([^<]*)<\/(?:[\w]+:)?href>/i;
+const IS_COLLECTION =
+  /<(?:[\w]+:)?resourcetype[^>]*>[\s\S]*?<(?:[\w]+:)?collection(?:\s[^>]*)?\/?>/i;
+
 function ensureTrailingSlash(url: string): string {
   return url.endsWith('/') ? url : url + '/';
-}
-
-function htmlDecode(s: string): string {
-  return s
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"');
 }
 
 function coerceString(v: unknown): string | undefined {
@@ -151,23 +156,23 @@ async function propfind(relDir: string): Promise<PropEntry[]> {
       : pathname.replace(/^\/+/, '');
 
   const out: PropEntry[] = [];
-  const blockRe = /<(?:\w+:)?response[^>]*>([\s\S]*?)<\/(?:\w+:)?response>/gi;
   let block: RegExpExecArray | null;
-  while ((block = blockRe.exec(xml)) !== null) {
+  while ((block = RESPONSE_BLOCK.exec(xml)) !== null) {
     const inner = block[1];
-    const hrefMatch = /<(?:\w+:)?href[^>]*>([^<]*)<\/(?:\w+:)?href>/i.exec(inner);
-    if (!hrefMatch) continue;
-    const pathname = new URL(decodeURIComponent(htmlDecode(hrefMatch[1])), new URL(url))
-      .pathname;
-    const rel = relOf(pathname).replace(/\/+$/, '').replace(/^\/+/, '');
-    if (!rel) continue;
-    const isCollection =
-      /<(?:\w+:)?resourcetype[^>]*>[\s\S]*?<(?:\w+:)?collection(?:\s[^>]*)?\/?>/i.test(
-        inner
-      );
-    out.push({ rel, isCollection });
+    const rel = relFor(inner, url, relOf);
+    if (rel) out.push({ rel, isCollection: IS_COLLECTION.test(inner) });
   }
   return out;
+}
+
+/** Parse one PROPFIND `<response>` block into a relative path, or null when it
+ * has no `<href>` or it resolves to the directory itself. */
+function relFor(inner: string, url: string, relOf: (p: string) => string): string | null {
+  const href = HREF.exec(inner)?.[1];
+  if (!href) return null;
+  const pathname = new URL(decodeURIComponent(htmlDecode(href)), new URL(url)).pathname;
+  const rel = relOf(pathname).replace(/\/+$/, '').replace(/^\/+/, '');
+  return rel || null;
 }
 
 /** Fetch and parse a product's `docs.yaml` manifest. */
@@ -186,12 +191,7 @@ async function loadManifest(relYaml: string): Promise<Manifest> {
 
 function titleFromPath(relPath: string): string {
   const baseName = relPath.split('/').pop() ?? relPath;
-  const stem = baseName.replace(/\.[^/.]+$/, '');
-  return stem
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
+  return humanize(baseName.replace(/\.[^/.]+$/, ''));
 }
 
 /** Derive a metadata-only DocMeta entry from a manifest page spec. Cheap: no

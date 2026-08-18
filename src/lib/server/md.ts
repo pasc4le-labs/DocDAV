@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import hljs from 'highlight.js/lib/common';
+import { escapeHtml } from './text';
 
 /**
  * Markdown → HTML renderer for drive-docs.
@@ -202,14 +203,6 @@ function renderExcalidraw(raw: string): string {
   const viewW = Math.round(maxX - minX + pad * 2);
   const viewH = Math.round(maxY - minY + pad * 2);
   return `<div class="excalidraw-svg"><svg viewBox="${viewX} ${viewY} ${viewW} ${viewH}" role="img" aria-label="Excalidraw diagram" xmlns="http://www.w3.org/2000/svg">${parts.join('')}</svg></div>`;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 type Segment = { kind: 'md'; value: string } | { kind: 'html'; value: string };

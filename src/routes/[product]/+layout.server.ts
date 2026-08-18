@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { getDocs } from '$lib/server/dav';
-import { sidebarFor, productLabel } from '$lib/server/nav';
+import { sidebarFor } from '$lib/server/nav';
+import { humanize } from '$lib/server/text';
 
 export async function load({ params }) {
   const product = params.product as string;
@@ -9,5 +10,5 @@ export async function load({ params }) {
   if (sidebar.length === 0) {
     throw error(404, 'Unknown product');
   }
-  return { product, label: productLabel(product), sidebar };
+  return { product, label: humanize(product), sidebar };
 }
