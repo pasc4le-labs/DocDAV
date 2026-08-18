@@ -1,28 +1,25 @@
-import { env } from '$env/dynamic/private';
+import { getSitePassword as davSitePassword, getPasswordMap } from './dav';
 
-/** Per-product access passwords. */
+/** Per-product access passwords, sourced from each product's `docs.yaml`
+ * (`password:` key) and the site password from the root `site.yaml`. */
+
 export const AUTH_COOKIE = 'drive_docs_auth';
 /** Reserved auth-box key for the site-wide homepage password. */
 export const AUTH_SITE = '*';
 
-export function getPasswords(): Record<string, string> {
-  try {
-    return JSON.parse(env.DOC_PASSWORDS || '{}') as Record<string, string>;
-  } catch {
-    return {};
-  }
+/** True when a product carries a `password:` in its manifest. */
+export async function isGated(product: string): Promise<boolean> {
+  return (await getPasswordMap()).has(product);
 }
 
-export function getSitePassword(): string | undefined {
-  return env.DOCS_SITE_PASSWORD || undefined;
+/** Per-product password, if set. */
+export async function getSecret(product: string): Promise<string | undefined> {
+  return (await getPasswordMap()).get(product);
 }
 
-export function isGated(product: string): boolean {
-  return product in getPasswords();
-}
-
-export function getSecret(product: string): string | undefined {
-  return getPasswords()[product];
+/** Site-wide homepage password from the root `site.yaml`. */
+export async function getSitePassword(): Promise<string | undefined> {
+  return davSitePassword();
 }
 
 export function readAuthBox(raw: string | undefined): Record<string, boolean> {

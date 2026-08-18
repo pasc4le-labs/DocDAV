@@ -58,13 +58,15 @@ Dispatch lives in `src/lib/server/format.ts` (`detectKind`, `renderBody`,
 - `src/lib/server/nav.ts` — `listProducts(docs, meta)` (metadata from maps) and
   `sidebarFor()` (categories/order from DocMeta).
 - `src/routes/+page.server.ts` — passes `getProductsMeta()` to `listProducts`.
-- `src/hooks.server.ts` + `auth.ts`/`gate.ts` — per-product (`DOC_PASSWORDS`)
-  and site (`DOCS_SITE_PASSWORD`) gating before any page load.
+- `src/hooks.server.ts` + `auth.ts`/`gate.ts` — per-product (`password:` in
+  `docs.yaml`) and site (`password:` in root `site.yaml`) gating before any
+  page load. `auth.ts` sources secrets from `dav` (async).
 
 ## Env (canonical)
 
-`WEBDAV_URL`, `WEBDAV_USER`, `WEBDAV_PASS`, `WEBDAV_TTL_MS`, `DOC_PASSWORDS`
-(JSON map), `DOCS_SITE_PASSWORD`, `DOCS_BRAND`, `DOCS_LOGO`.
+`WEBDAV_URL`, `WEBDAV_USER`, `WEBDAV_PASS`, `WEBDAV_TTL_MS`, `DOCS_BRAND`,
+`DOCS_LOGO`. Access passwords are **not** env: per-product `password:` in that
+product's `docs.yaml`, site/homepage `password:` in a root `site.yaml`.
 
 ## Local harness
 

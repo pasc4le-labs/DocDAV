@@ -75,8 +75,8 @@ pnpm dev
 ```
 
 Open http://127.0.0.1:4323. The sample drive contains two products: `atlas`
-and `scorekeeper`. `atlas` is protected with the key `atlaspass` (see
-`.env.example`, `DOC_PASSWORDS`).
+and `scorekeeper`. `atlas` is protected with the key `atlaspass` (set via
+`password:` in its `docs.yaml`).
 
 ## Using the content components
 
@@ -92,13 +92,28 @@ reminders:
 
 ## Restricting access
 
-```bash
-export DOC_PASSWORDS='{"atlas":"atlaspass"}'
-export DOCS_SITE_PASSWORD=        # optional, protects the landing page
-```
+Passwords live in the content, not the environment.
 
-Locked products are gated before rendering; the password works via `?key=…`,
-an `X-Doc-Key` header, or the unlock form.
+- **Per-product:** add a top-level `password:` to that product's `docs.yaml`:
+
+  ```yaml
+  # <docsRoot>/atlas/docs.yaml
+  title: Atlas
+  password: atlaspass   # → /atlas and its pages require this key
+  pages: …
+  ```
+
+- **Site / homepage:** add a `site.yaml` at the drive root:
+
+  ```yaml
+  # <docsRoot>/site.yaml
+  password: site-secret   # → the landing page / requires this key
+  ```
+
+A product without `password:` (and a drive without `site.yaml`) is public.
+Locked products are gated **before** rendering; the password works via
+`?key=…`, an `X-Doc-Key` header, or the unlock form. Passwords are re-read with
+the same TTL cache as the rest of the content.
 
 ## Production
 

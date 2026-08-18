@@ -1,6 +1,7 @@
 title: Atlas
 description: Our flagship platform, powered by a live WebDAV drive.
 cover: /images/atlas-cover.svg
+password: atlaspass
 pages:
   - title: Atlas — Overview
     source: index.md

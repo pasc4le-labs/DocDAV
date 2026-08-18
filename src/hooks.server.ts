@@ -15,8 +15,8 @@ import { gatePage } from '$lib/server/gate';
  * Access control, before anything else.
  *
  *  - Static assets are always public (the gates are self-contained HTML).
- *  - The homepage `/` is gated when DOCS_SITE_PASSWORD is set.
- *  - `/<product>/…` is gated when the product is in DOC_PASSWORDS.
+ *  - The homepage `/` is gated when the root `site.yaml` sets a `password`.
+ *  - `/<product>/…` is gated when that product's `docs.yaml` sets a `password`.
  *
  * Passwords are accepted as a query param (?key=… / ?p=…), an X-Doc-Key
  * header, or a cookie (set after a successful unlock). Wrong/missing means a
@@ -35,7 +35,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Homepage gate.
   if (path === '/') {
-    const siteSecret = getSitePassword();
+    const siteSecret = await getSitePassword();
     if (!siteSecret) {
       return resolve(event); // public
     }
@@ -53,13 +53,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Product gate.
   const first = path.split('/').filter(Boolean)[0];
-  if (!first || !isGated(first)) {
+  if (!first || !(await isGated(first))) {
     return resolve(event);
   }
   if (isAuthed(cookie, first)) {
     return resolve(event);
   }
-  const secret = getSecret(first);
+  const secret = await getSecret(first);
   if (secret && accepts(request, url, secret)) {
     return grant(cookies, cookie, first, path);
   }

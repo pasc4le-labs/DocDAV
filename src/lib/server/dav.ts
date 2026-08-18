@@ -32,6 +32,8 @@ export interface DocMeta {
 export interface ProductMeta {
   description?: string;
   cover?: string;
+  /** Optional per-product access password. Present → product is gated. */
+  password?: string;
 }
 
 interface PageSpec {
@@ -46,6 +48,7 @@ interface Manifest {
   title?: string;
   description?: string;
   cover?: string;
+  password?: string;
   pages?: PageSpec[];
 }
 
@@ -68,6 +71,8 @@ interface Index {
   at: number;
   docs: DocMeta[];
   products: Map<string, ProductMeta>;
+  /** Site-wide (homepage) password from <base>/site.yaml. */
+  sitePassword?: string;
 }
 let indexCache: Index | null = null;
 
@@ -162,6 +167,7 @@ async function loadManifest(relYaml: string): Promise<Manifest> {
     title: coerceString(parsed.title),
     description: coerceString(parsed.description),
     cover: coerceString(parsed.cover),
+    password: coerceString(parsed.password),
     pages: Array.isArray(parsed.pages) ? (parsed.pages as PageSpec[]) : [],
   };
 }
@@ -214,6 +220,19 @@ async function buildIndex(): Promise<Index> {
   const top = await propfind('');
   const productDirs = top.filter((e) => e.isCollection).map((e) => e.rel).sort();
 
+  // Optional site-wide config at the drive root: <base>/site.yaml
+  let sitePassword: string | undefined;
+  const siteEntry = top.find((e) => !e.isCollection && /^site\.ya?ml$/i.test(e.rel));
+  if (siteEntry) {
+    try {
+      const { text } = await rawFetch(new URL(encodeURI(siteEntry.rel), base).href, false);
+      const parsed = (parseYaml(text ?? '') ?? {}) as Record<string, unknown>;
+      sitePassword = coerceString(parsed.password);
+    } catch (err) {
+      console.warn('[dav] site.yaml:', err);
+    }
+  }
+
   for (const dir of productDirs) {
     let manifestRel: string | undefined;
     let manifest: Manifest;
@@ -233,6 +252,7 @@ async function buildIndex(): Promise<Index> {
     products.set(dir, {
       description: manifest.description,
       cover: manifest.cover,
+      password: manifest.password,
     });
 
     const pages = manifest.pages ?? [];
@@ -249,7 +269,7 @@ async function buildIndex(): Promise<Index> {
   }
 
   docs.sort((a, b) => a.product.localeCompare(b.product) || a.order - b.order);
-  return { at: Date.now(), docs, products };
+  return { at: Date.now(), docs, products, sitePassword };
 }
 
 async function getIndex(): Promise<Index> {
@@ -275,4 +295,19 @@ export async function getProductsMeta(): Promise<Map<string, ProductMeta>> {
 export async function getDoc(id: string): Promise<DocMeta | undefined> {
   const docs = await getDocs();
   return docs.find((d) => d.id === id);
+}
+
+/** Per-product access passwords, keyed by product name (from docs.yaml). */
+export async function getPasswordMap(): Promise<Map<string, string>> {
+  const { products } = await getIndex();
+  const map = new Map<string, string>();
+  for (const [name, meta] of products) {
+    if (meta.password) map.set(name, meta.password);
+  }
+  return map;
+}
+
+/** Site-wide (homepage) password from the root `site.yaml`. */
+export async function getSitePassword(): Promise<string | undefined> {
+  return (await getIndex()).sitePassword;
 }

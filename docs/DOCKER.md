@@ -24,13 +24,14 @@ docker run -d --name docdav -p 4323:4323 \
   -e WEBDAV_URL="https://<host>/<base>/<docsRoot>/" \
   -e WEBDAV_USER="user" \
   -e WEBDAV_PASS="pass" \
-  -e DOC_PASSWORDS='{"atlas":"atlaspass"}' \
   -e DOCS_BRAND="Pasc4le Docs" \
   ghcr.io/pasc4le-labs/docdav:<tag>
 ```
 
 Required env is the same as any deployment: `WEBDAV_URL`, `WEBDAV_USER`,
-`WEBDAV_PASS`. See [README.md](README.md#configuration-env) for the full list.
+`WEBDAV_PASS`. See [README.md](README.md#configuration-env) for the full list
+(note: access passwords now live in the content — `password:` per product in
+`docs.yaml`, or a root `site.yaml` for the homepage — not in env).
 
 ## Docker Compose
 
@@ -48,8 +49,6 @@ services:
       WEBDAV_USER: ${WEBDAV_USER:?set WEBDAV_USER in .env}
       WEBDAV_PASS: ${WEBDAV_PASS:?set WEBDAV_PASS in .env}
       WEBDAV_TTL_MS: ${WEBDAV_TTL_MS:-30000}
-      DOC_PASSWORDS: ${DOC_PASSWORDS:-}
-      DOCS_SITE_PASSWORD: ${DOCS_SITE_PASSWORD:-}
       DOCS_BRAND: ${DOCS_BRAND:-DocDAV}
       DOCS_LOGO: ${DOCS_LOGO:-}
 ```

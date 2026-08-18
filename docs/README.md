@@ -61,6 +61,7 @@ pages:
 | Manifest key | Purpose                                                              |
 | ------------ | ------------------------------------------------------------------- |
 | (top) `title` / `description` / `cover` | product metadata → homepage card          |
+| (top) `password` | optional per-product access password (product becomes gated)     |
 | `pages[].title` | page title + sidebar label (default: filename)                    |
 | `pages[].source` | file path relative to the product folder                          |
 | `pages[].category` | sidebar group (default `General`, first-appearance order)        |
@@ -130,20 +131,20 @@ drive, so there is no cloud dependency.
 | `WEBDAV_URL`          | WebDAV docs root                                                     |
 | `WEBDAV_USER` / `WEBDAV_PASS` | Basic auth for the drive                                     |
 | `WEBDAV_TTL_MS`       | in-memory freshness cache (default 30000)                           |
-| `DOC_PASSWORDS`       | JSON `{product: password}`; per-product access control               |
-| `DOCS_SITE_PASSWORD`  | protects the homepage `/` (leave empty for a public landing)        |
 | `DOCS_BRAND`          | navbar brand text                                                    |
 | `DOCS_LOGO`           | navbar logo `<img>` src (https URL or data: URI); replaces brand text when set |
 
 ## Authentication
 
-- Any product listed in `DOC_PASSWORDS` becomes password-protected;
-  `DOCS_SITE_PASSWORD` additionally protects the homepage `/`.
-- The password is accepted via query param (`?key=…` / `?p=…`), an
-  `X-Doc-Key` header, or a styled unlock form. On success a session cookie is
-  set and you are redirected to a clean URL.
+- Passwords live in the content: **per-product** via `password:` in that
+  product's `docs.yaml`; **site-wide** via `password:` in a root `site.yaml`.
+  Products without a password, and a drive without `site.yaml`, are public.
+- A locked product is gated **before** rendering; the password is accepted via
+  query param (`?key=…` / `?p=…`), an `X-Doc-Key` header, or a styled unlock
+  form. On success a session cookie is set and you are redirected to a clean URL.
 - Gating runs in `src/hooks.server.ts` **before** any page load, so locked
-  content is never rendered.
+  content is never rendered. Password lookups share the same WebDAV + TTL cache
+  as the content.
 - There is no cross-product navigation in the navbar; each product is its own
   silo reached from the landing page.
 

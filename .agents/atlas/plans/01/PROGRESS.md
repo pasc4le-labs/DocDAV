@@ -34,6 +34,14 @@ Updated: 2026-08-18
 - **2026-08-18** — Docs updated: `README.md` (multi-format + manifest), `docs/
   USAGE.md` (authoring + format matrix), `docs/README.md` (content model,
   architecture, deps, notes). Added topic `00-architecture`.
+- **2026-08-18** — **Post-merge follow-up: passwords moved into content.**
+  Per-product access password is now `password:` in each product's
+  `docs.yaml`; the site/homepage password is `password:` in a root
+  `site.yaml`. `auth.ts` sources from `dav` (async); `hooks` awaits it. Env
+  vars `DOC_PASSWORDS` / `DOCS_SITE_PASSWORD` removed from code, `.env.example`,
+  `docker-compose.yml` and docs. Sample `atlas` gained `password: atlaspass`.
+  Verified with a live drive: gated product 401 + key-auth 302, public product
+  200, site.yaml gates `/` 401 + key-auth 302.
 
 ## Next
 - Committed; awaiting merge/PR. Future plans can build manifest-driven editing
