@@ -1,0 +1,16 @@
+services:
+  docdav:
+    image: ghcr.io/pasc4le-labs/docdav:latest
+    container_name: docdav
+    restart: unless-stopped
+    ports:
+      - "4323:4323"
+    environment:
+      WEBDAV_URL: ${WEBDAV_URL:?set WEBDAV_URL in .env}
+      WEBDAV_USER: ${WEBDAV_USER:?set WEBDAV_USER in .env}
+      WEBDAV_PASS: ${WEBDAV_PASS:?set WEBDAV_PASS in .env}
+      WEBDAV_TTL_MS: ${WEBDAV_TTL_MS:-30000}
+      DOC_PASSWORDS: ${DOC_PASSWORDS:-}
+      DOCS_SITE_PASSWORD: ${DOCS_SITE_PASSWORD:-}
+      DOCS_BRAND: ${DOCS_BRAND:-DocDAV}
+      DOCS_LOGO: ${DOCS_LOGO:-}
