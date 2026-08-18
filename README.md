@@ -1,4 +1,4 @@
-# DocDAV
+![DocDAV](https://i.ibb.co/Mx440GWq/docdav-hero-png.png)
 
 Turn any WebDAV drive into a clean, modern documentation site for your
 products. You keep writing plain Markdown in your own cloud storage (or a
