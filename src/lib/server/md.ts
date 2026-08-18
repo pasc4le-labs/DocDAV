@@ -1,5 +1,5 @@
-import { marked } from 'marked';
 import hljs from 'highlight.js/lib/common';
+import { marked } from 'marked';
 import { escapeHtml } from './text';
 
 /**
@@ -81,7 +81,9 @@ function renderExcalidraw(raw: string): string {
   let elements: any[];
   try {
     const parsed = JSON.parse(raw);
-    elements = Array.isArray(parsed) ? parsed : (parsed as { elements?: unknown[] })?.elements ?? [];
+    elements = Array.isArray(parsed)
+      ? parsed
+      : ((parsed as { elements?: unknown[] })?.elements ?? []);
   } catch {
     return `<pre class="hljs"><code>${escapeHtml(raw)}</code></pre>`;
   }
@@ -105,7 +107,7 @@ function renderExcalidraw(raw: string): string {
     if (x + w > maxX) maxX = x + w;
     if (y + h > maxY) maxY = y + h;
   }
-  if (!isFinite(minX)) {
+  if (!Number.isFinite(minX)) {
     minX = minY = 0;
     maxX = maxY = 10;
   }
@@ -139,27 +141,24 @@ function renderExcalidraw(raw: string): string {
       }
       case 'ellipse':
         parts.push(
-          `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${common}/>`
+          `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${common}/>`,
         );
         break;
       case 'diamond': {
         const cx = x + w / 2,
           cy = y + h / 2;
         parts.push(
-          `<polygon points="${cx},${y} ${x + w},${cy} ${cx},${y + h} ${x},${cy}" ${common}/>`
+          `<polygon points="${cx},${y} ${x + w},${cy} ${cx},${y + h} ${x},${cy}" ${common}/>`,
         );
         break;
       }
       case 'line':
       case 'arrow': {
-        const pts = (Array.isArray(e.points) ? e.points : [[0, 0]])
-          .map((p: unknown) => {
-            const arr = p as [number, number];
-            return [x + (Number(arr?.[0]) || 0), y + (Number(arr?.[1]) || 0)];
-          });
-        parts.push(
-          `<polyline points="${pts.map((p) => `${p[0]},${p[1]}`).join(' ')}" ${common}/>`
-        );
+        const pts = (Array.isArray(e.points) ? e.points : [[0, 0]]).map((p: unknown) => {
+          const arr = p as [number, number];
+          return [x + (Number(arr?.[0]) || 0), y + (Number(arr?.[1]) || 0)];
+        });
+        parts.push(`<polyline points="${pts.map((p) => `${p[0]},${p[1]}`).join(' ')}" ${common}/>`);
         if (e.type === 'arrow' && e.endArrowhead !== null && pts.length >= 2) {
           const n = pts.length;
           const last = pts[n - 1],
@@ -171,7 +170,7 @@ function renderExcalidraw(raw: string): string {
           const p1 = [last[0] + L * Math.cos(a1), last[1] + L * Math.sin(a1)];
           const p2 = [last[0] + L * Math.cos(a2), last[1] + L * Math.sin(a2)];
           parts.push(
-            `<polygon points="${last[0]},${last[1]} ${p1[0]},${p1[1]} ${p2[0]},${p2[1]}" fill="${stroke}"/>`
+            `<polygon points="${last[0]},${last[1]} ${p1[0]},${p1[1]} ${p2[0]},${p2[1]}" fill="${stroke}"/>`,
           );
         }
         break;
@@ -191,7 +190,7 @@ function renderExcalidraw(raw: string): string {
           ty = y + fs * 0.4;
         }
         parts.push(
-          `<text x="${tx}" y="${ty}" font-family="${family}" font-size="${fs}" fill="${stroke}" text-anchor="${anchor}" dominant-baseline="central">${escapeHtml(String(e.text ?? ''))}</text>`
+          `<text x="${tx}" y="${ty}" font-family="${family}" font-size="${fs}" fill="${stroke}" text-anchor="${anchor}" dominant-baseline="central">${escapeHtml(String(e.text ?? ''))}</text>`,
         );
         break;
       }
@@ -276,7 +275,7 @@ function scan(src: string): Segment[] {
       }
       const first = q[0].replace(BLOCKQUOTE, '').trim();
       const m = CALLOUT_FIRST.exec(first);
-      const kind = (m && m[1].toLowerCase()) || '';
+      const kind = m?.[1].toLowerCase() || '';
       const spec = CALLOUT_TYPES[kind];
       if (m && spec) {
         const customTitle = (m[2] || '').trim();
@@ -299,7 +298,7 @@ function scan(src: string): Segment[] {
         continue;
       }
       // Not a callout — treat as a normal blockquote.
-      q.forEach((l) => buf.push(l));
+      buf.push(...q);
       continue;
     }
 

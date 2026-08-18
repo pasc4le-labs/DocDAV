@@ -1,23 +1,23 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import 'highlight.js/styles/github-dark.css';
-  import 'remixicon/fonts/remixicon.css';
-  import './styles.css';
-  import { toggleSidebar } from '$lib/ui.svelte';
+import { page } from '$app/state';
+import 'highlight.js/styles/github-dark.css';
+import 'remixicon/fonts/remixicon.css';
+import './styles.css';
+import { toggleSidebar } from '$lib/ui.svelte';
 
-  let { data, children } = $props();
-  const onProduct = $derived(!!page.params.product);
-  const initial = $derived(data.brand.name.charAt(0).toUpperCase());
-  // Product display name for the navbar (e.g. folder "atlas" -> "Atlas").
-  const productName = $derived(
-    page.params.product
-      ? String(page.params.product)
-          .split(/[-_]/)
-          .filter(Boolean)
-          .map((w) => w[0].toUpperCase() + w.slice(1))
-          .join(' ')
-      : ''
-  );
+let { data, children } = $props();
+const onProduct = $derived(!!page.params.product);
+const initial = $derived(data.brand.name.charAt(0).toUpperCase());
+// Product display name for the navbar (e.g. folder "atlas" -> "Atlas").
+const productName = $derived(
+  page.params.product
+    ? String(page.params.product)
+        .split(/[-_]/)
+        .filter(Boolean)
+        .map((w) => w[0].toUpperCase() + w.slice(1))
+        .join(' ')
+    : '',
+);
 </script>
 
 <div class="app">

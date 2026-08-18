@@ -1,5 +1,5 @@
-import { env } from '$env/dynamic/private';
 import { parse as parseYaml } from 'yaml';
+import { env } from '$env/dynamic/private';
 import { detectKind, isBinaryKind, renderBodyAsync } from './format';
 import { htmlDecode, humanize } from './text';
 
@@ -62,9 +62,7 @@ const base = ensureTrailingSlash(env.WEBDAV_URL || 'http://127.0.0.1:8090/');
 const ttlMs = Number(env.WEBDAV_TTL_MS || 30_000);
 const auth =
   'Basic ' +
-  Buffer.from(
-    `${env.WEBDAV_USER || 'demo'}:${env.WEBDAV_PASS || 'secret'}`
-  ).toString('base64');
+  Buffer.from(`${env.WEBDAV_USER || 'demo'}:${env.WEBDAV_PASS || 'secret'}`).toString('base64');
 
 interface CacheEntry {
   expiresAt: number;
@@ -105,7 +103,7 @@ const IS_COLLECTION =
   /<(?:[\w]+:)?resourcetype[^>]*>[\s\S]*?<(?:[\w]+:)?collection(?:\s[^>]*)?\/?>/i;
 
 function ensureTrailingSlash(url: string): string {
-  return url.endsWith('/') ? url : url + '/';
+  return url.endsWith('/') ? url : `${url}/`;
 }
 
 function coerceString(v: unknown): string | undefined {
@@ -116,7 +114,7 @@ function coerceString(v: unknown): string | undefined {
 
 async function rawFetch(
   url: string,
-  binary: boolean
+  binary: boolean,
 ): Promise<{ text?: string; buffer?: ArrayBuffer; lastModified?: string }> {
   const hit = fileCache.get(url);
   if (hit && hit.expiresAt > Date.now()) return hit;
@@ -151,9 +149,7 @@ async function propfind(relDir: string): Promise<PropEntry[]> {
   const xml = await res.text();
   const basePath = new URL(base).pathname;
   const relOf = (pathname: string) =>
-    pathname.startsWith(basePath)
-      ? pathname.slice(basePath.length)
-      : pathname.replace(/^\/+/, '');
+    pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname.replace(/^\/+/, '');
 
   const out: PropEntry[] = [];
   let block: RegExpExecArray | null;
@@ -196,12 +192,7 @@ function titleFromPath(relPath: string): string {
 
 /** Derive a metadata-only DocMeta entry from a manifest page spec. Cheap: no
  * content is fetched or rendered at index time. */
-function metaFromSpec(
-  relPath: string,
-  spec: PageSpec,
-  order: number,
-  product: string
-): DocMeta {
+function metaFromSpec(relPath: string, spec: PageSpec, order: number, product: string): DocMeta {
   return {
     id: relPath.replace(/\.[^/.]+$/, ''),
     title:
@@ -239,7 +230,10 @@ async function buildIndex(): Promise<Index> {
   const products = new Map<string, ProductMeta>();
 
   const top = await propfind('');
-  const productDirs = top.filter((e) => e.isCollection).map((e) => e.rel).sort();
+  const productDirs = top
+    .filter((e) => e.isCollection)
+    .map((e) => e.rel)
+    .sort();
 
   // Optional site-wide config at the drive root: <base>/site.yaml
   let sitePassword: string | undefined;
@@ -259,7 +253,7 @@ async function buildIndex(): Promise<Index> {
     try {
       const entries = await propfind(dir);
       const yamlEntry = entries.find(
-        (e) => !e.isCollection && /^docs\.ya?ml$/i.test(e.rel.split('/').pop() ?? '')
+        (e) => !e.isCollection && /^docs\.ya?ml$/i.test(e.rel.split('/').pop() ?? ''),
       );
       if (!yamlEntry) continue; // no manifest → contributes nothing
       manifest = await loadManifest(yamlEntry.rel);

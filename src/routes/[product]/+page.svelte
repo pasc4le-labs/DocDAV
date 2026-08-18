@@ -1,8 +1,9 @@
 <script lang="ts">
-  import type { SidebarCategory } from '$lib/server/nav';
-  let { data } = $props();
-  const label = $derived(data.label as string);
-  const sidebar = $derived(data.sidebar as SidebarCategory[]);
+import type { SidebarCategory } from '$lib/server/nav';
+
+let { data } = $props();
+const label = $derived(data.label as string);
+const sidebar = $derived(data.sidebar as SidebarCategory[]);
 </script>
 
 <h1>{label}</h1>

@@ -1,8 +1,8 @@
-import { renderMd } from './md';
-import sanitizeHtml from 'sanitize-html';
-import mammoth from 'mammoth';
-import * as XLSX from 'xlsx';
 import { convert as asciidoctorConvert } from 'asciidoctor';
+import mammoth from 'mammoth';
+import sanitizeHtml from 'sanitize-html';
+import * as XLSX from 'xlsx';
+import { renderMd } from './md';
 import { escapeHtml } from './text';
 
 /**
@@ -13,14 +13,7 @@ import { escapeHtml } from './text';
  * format-agnostic and new formats are a one-file change.
  */
 
-export type ContentKind =
-  | 'md'
-  | 'txt'
-  | 'html'
-  | 'adoc'
-  | 'csv'
-  | 'docx'
-  | 'xlsx';
+export type ContentKind = 'md' | 'txt' | 'html' | 'adoc' | 'csv' | 'docx' | 'xlsx';
 
 export interface ContentData {
   /** Raw text for text-based formats (`md/txt/html/adoc/csv`). */
@@ -67,7 +60,9 @@ function tableToMarkdown(rows: string[][]): string {
     `| ${pad(cells)
       .map((c) => String(c).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim())
       .join(' | ')} |`;
-  const sep = `| ${pad(header).map(() => '---').join(' | ')} |`;
+  const sep = `| ${pad(header)
+    .map(() => '---')
+    .join(' | ')} |`;
   const lines = [rowToMd(header), sep, ...body.map((r) => rowToMd(r))];
   return lines.join('\n');
 }
@@ -102,14 +97,35 @@ export function renderBody(kind: ContentKind, data: ContentData): string {
     case 'html':
       return sanitizeHtml(data.text ?? '', {
         allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-          'img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'details', 'summary', 'iframe', 'pre',
+          'img',
+          'h1',
+          'h2',
+          'h3',
+          'h4',
+          'h5',
+          'h6',
+          'table',
+          'thead',
+          'tbody',
+          'tr',
+          'th',
+          'td',
+          'details',
+          'summary',
+          'iframe',
+          'pre',
         ]),
         allowedAttributes: {
           ...sanitizeHtml.defaults.allowedAttributes,
           img: ['src', 'alt', 'title', 'width', 'height'],
           iframe: ['src', 'width', 'height', 'title', 'allowfullscreen', 'loading'],
           a: ['href', 'name', 'target', 'rel'],
-          h1: ['id'], h2: ['id'], h3: ['id'], h4: ['id'], h5: ['id'], h6: ['id'],
+          h1: ['id'],
+          h2: ['id'],
+          h3: ['id'],
+          h4: ['id'],
+          h5: ['id'],
+          h6: ['id'],
           table: ['border', 'cellpadding', 'cellspacing'],
         },
       });

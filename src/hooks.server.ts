@@ -1,13 +1,13 @@
-import { redirect, type Cookies, type Handle } from '@sveltejs/kit';
+import { type Cookies, type Handle, redirect } from '@sveltejs/kit';
 import { getBrand } from '$lib/config';
 import {
   AUTH_COOKIE,
   AUTH_SITE,
-  isGated,
+  buildAuthBox,
   getSecret,
   getSitePassword,
   isAuthed,
-  buildAuthBox,
+  isGated,
 } from '$lib/server/auth';
 import { gatePage } from '$lib/server/gate';
 
@@ -69,24 +69,13 @@ export const handle: Handle = async ({ event, resolve }) => {
   });
 };
 
-function accepts(
-  request: Request,
-  url: URL,
-  secret: string
-): string | undefined {
+function accepts(request: Request, url: URL, secret: string): string | undefined {
   const given =
-    url.searchParams.get('key') ??
-    url.searchParams.get('p') ??
-    request.headers.get('x-doc-key');
+    url.searchParams.get('key') ?? url.searchParams.get('p') ?? request.headers.get('x-doc-key');
   return given === secret ? given : undefined;
 }
 
-function grant(
-  cookies: Cookies,
-  cookie: string | undefined,
-  key: string,
-  path: string
-): Response {
+function grant(cookies: Cookies, cookie: string | undefined, key: string, path: string): Response {
   cookies.set(AUTH_COOKIE, buildAuthBox(cookie, key), {
     path: '/',
     httpOnly: true,

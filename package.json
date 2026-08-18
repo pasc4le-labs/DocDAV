@@ -12,7 +12,10 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4323",
     "webdav:sample": "node scripts/webdav-sample.mjs",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "format": "biome format --write .",
+    "lint": "biome lint --write .",
+    "check:biome": "biome check ."
   },
   "dependencies": {
     "asciidoctor": "^4.0.10",
@@ -26,6 +29,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

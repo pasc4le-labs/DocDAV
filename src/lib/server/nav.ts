@@ -27,7 +27,7 @@ export interface ProductInfo {
 
 export function listProducts(
   docs: DocMeta[],
-  meta: Map<string, ProductMeta> = new Map()
+  meta: Map<string, ProductMeta> = new Map(),
 ): ProductInfo[] {
   const byProduct = new Map<string, DocMeta[]>();
   for (const d of docs) {

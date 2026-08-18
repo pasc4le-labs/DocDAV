@@ -1,13 +1,11 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { ui, closeSidebar } from '$lib/ui.svelte';
-  import type { SidebarCategory } from '$lib/server/nav';
+import { page } from '$app/state';
+import type { SidebarCategory } from '$lib/server/nav';
+import { closeSidebar, ui } from '$lib/ui.svelte';
 
-  let { data, children } = $props();
-  const activeId = $derived(
-    page.params.slug ? `${data.product}/${page.params.slug}` : undefined
-  );
-  const sidebar = $derived(data.sidebar as SidebarCategory[]);
+let { data, children } = $props();
+const activeId = $derived(page.params.slug ? `${data.product}/${page.params.slug}` : undefined);
+const sidebar = $derived(data.sidebar as SidebarCategory[]);
 </script>
 
 <div class="shell" class:collapsed={ui.sidebarCollapsed}>
