@@ -8,7 +8,7 @@ published automatically on every `v*` tag push (see
 
 | Field  | Value                              |
 | ------ | ---------------------------------- |
-| Image  | `ghcr.io/pasc4le-labs/DocDAV`      |
+| Image  | `ghcr.io/pasc4le-labs/docdav`   |
 | Tags   | `<git tag>` and `latest`           |
 | Platforms | `linux/amd64`, `linux/arm64`     |
 | Base   | `node:22-alpine` (runtime stage)   |
@@ -26,7 +26,7 @@ docker run -d --name docdav -p 4323:4323 \
   -e WEBDAV_PASS="pass" \
   -e DOC_PASSWORDS='{"atlas":"atlaspass"}' \
   -e DOCS_BRAND="Pasc4le Docs" \
-  ghcr.io/pasc4le-labs/DocDAV:<tag>
+  ghcr.io/pasc4le-labs/docdav:<tag>
 ```
 
 Required env is the same as any deployment: `WEBDAV_URL`, `WEBDAV_USER`,
@@ -38,7 +38,7 @@ Required env is the same as any deployment: `WEBDAV_URL`, `WEBDAV_USER`,
 2. The `publish-image` workflow builds for `linux/amd64` and `linux/arm64`,
    pushes both to GHCR, then smoke-tests the pushed image against a local
    WebDAV server serving `content-sample/`.
-3. Pull with `docker pull ghcr.io/pasc4le-labs/DocDAV:v1.0.0`.
+3. Pull with `docker pull ghcr.io/pasc4le-labs/docdav:v1.0.0`.
 
 Pre-release tags (`v1.0.0-a.1`) work the same and are used to validate the
 pipeline before a real release.

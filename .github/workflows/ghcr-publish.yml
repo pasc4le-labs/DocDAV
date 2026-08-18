@@ -9,7 +9,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/pasc4le-labs/DocDAV
+  IMAGE: ghcr.io/pasc4le-labs/docdav
   PORT: 4323
   WEBDAV_PORT: 8090
 
