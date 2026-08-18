@@ -1,14 +1,33 @@
 # DocDAV
 
-Product documentation platform for a software company, built on **SvelteKit**.
-Documentation lives on a **WebDAV drive** (one folder per product); the site
-pulls and renders it **live** on every request. Edit a Markdown file on the
-drive, refresh, done. No rebuild, no FUSE mount, no rclone daemon at runtime.
+Turn any WebDAV drive into a clean, modern documentation site for your
+products.
 
-## Docker
+You keep writing plain Markdown in your own cloud storage (or a self-hosted
+server). DocDAV reads it over standard WebDAV and renders it as fast,
+searchable, per-product docs. Edit a file, refresh the page, and it is live.
+No rebuild, no build pipeline, no extra moving parts.
 
-Ready-made images are published to GHCR on tag
-(`ghcr.io/pasc4le-labs/docdav`, multi-arch `linux/amd64,linux/arm64`).
+Each folder on the drive becomes a product. The site builds the sidebar,
+search, and per-product access control automatically from your files, and it
+runs anywhere a container runs.
+
+## Works with any WebDAV drive
+
+Because it speaks standard WebDAV, DocDAV works out of the box with most cloud
+storage and file servers. Popular examples:
+
+- **Nextcloud**
+- **ownCloud**
+- **pCloud**
+- **Yandex.Disk**
+- **Koofr**
+- **Internxt**
+
+It uses plain HTTP against your provider's WebDAV endpoint, so you are never
+locked in, and nothing is cached or copied outside your drive.
+
+## Run it
 
 ```bash
 docker run -d --name docdav -p 4323:4323 \
@@ -18,26 +37,11 @@ docker run -d --name docdav -p 4323:4323 \
   ghcr.io/pasc4le-labs/docdav:<tag>
 ```
 
-Or with Docker Compose (copy [docker-compose.yml](docker-compose.yml), set the
-`WEBDAV_*` values in `.env`):
+A Docker Compose example ships as [docker-compose.yml](docker-compose.yml).
 
-```yaml
-services:
-  docdav:
-    image: ghcr.io/pasc4le-labs/docdav:<tag>
-    ports:
-      - "4323:4323"
-    environment:
-      WEBDAV_URL: https://<host>/<base>/<docsRoot>/
-      WEBDAV_USER: user
-      WEBDAV_PASS: pass
-      DOC_PASSWORDS: '{"atlas":"atlaspass"}'
-      DOCS_BRAND: "Pasc4le Docs"
-```
+## License
 
-See [docs/DOCKER.md](docs/DOCKER.md) for the full env reference.
+Licensed under the **EUPL v1.2**, the European Union Public Licence.
 
-Licensed under the **EUPL v1.2**.
-
-See [docs/](docs/) for the full technical documentation (content model,
-components, configuration, auth).
+See [docs/](docs/) for full technical documentation (content model,
+components, configuration).
