@@ -71,7 +71,7 @@ required var is missing).
 1. Tag a commit: `git tag v1.0.0 && git push origin v1.0.0`.
 2. The `publish-image` workflow builds for `linux/amd64` and `linux/arm64`,
    pushes both to GHCR, then smoke-tests the pushed image against a local
-   WebDAV server serving `content-sample/`.
+   WebDAV server serving `content-samples/`.
 3. Pull with `docker pull ghcr.io/pasc4le-labs/docdav:v1.0.0`.
 
 Pre-release tags (`v1.0.0-a.1`) work the same and are used to validate the

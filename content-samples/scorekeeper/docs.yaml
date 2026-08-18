@@ -1,6 +1,6 @@
 title: Scorekeeper
 description: Real-time scoring for your games.
-cover: /images/scorekeeper-cover.svg
+cover: https://images.pexels.com/photos/6424584/pexels-photo-6424584.jpeg?auto=compress&cs=tinysrgb&w=800
 pages:
   - title: Scorekeeper — Overview
     source: index.md

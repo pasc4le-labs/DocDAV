@@ -70,7 +70,7 @@ product's `docs.yaml`, site/homepage `password:` in a root `site.yaml`.
 
 ## Local harness
 
-- `pnpm webdav:sample` — rclone `serve webdav` over `content-sample/` (demo/
+- `pnpm webdav:sample` — rclone `serve webdav` over `content-samples/` (demo/
   secret).
 - `pnpm dev` on :4323; prod: `pnpm build` + `node build` with `HOST/PORT`.
 

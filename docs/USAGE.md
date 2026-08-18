@@ -67,7 +67,7 @@ The sample harness uses a 2s directory cache so it behaves like a live drive.
 ```bash
 pnpm install
 
-# Terminal 1: local WebDAV server over content-sample/ on :8090
+# Terminal 1: local WebDAV server over content-samples/ on :8090
 pnpm webdav:sample
 
 # Terminal 2: dev server on :4323

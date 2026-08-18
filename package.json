@@ -11,7 +11,7 @@
     "dev": "vite dev --host 127.0.0.1 --port 4323",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4323",
-    "webdav:sample": "node scripts/webdav-sample.mjs",
+    "webdav:sample": "node content-samples/serve.mjs",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "format": "biome format --write .",
     "lint": "biome lint --write .",
