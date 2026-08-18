@@ -1,7 +1,7 @@
-import { getDocs } from '$lib/server/dav';
+import { getDocs, getProductsMeta } from '$lib/server/dav';
 import { listProducts } from '$lib/server/nav';
 
 export async function load() {
-  const docs = await getDocs();
-  return { products: listProducts(docs) };
+  const [docs, meta] = await Promise.all([getDocs(), getProductsMeta()]);
+  return { products: listProducts(docs, meta) };
 }

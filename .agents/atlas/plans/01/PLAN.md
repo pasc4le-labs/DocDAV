@@ -1,6 +1,6 @@
 # Plan 01 — Multi-format content + per-product manifest (no backwards compat)
 
-**Status:** Proposed
+**Status:** Implemented + merged (2026-08-18)
 **Scope:** DocDAV (`~/prj/docdav`)
 **Related:** topics 00-architecture (see PROGRESS when written)
 

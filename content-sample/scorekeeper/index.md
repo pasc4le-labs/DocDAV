@@ -1,10 +1,3 @@
----
-title: Scorekeeper — Overview
-description: Real-time scoring for your games
-cover: /images/scorekeeper-cover.svg
-category: Overview
-order: 1
----
 
 # Scorekeeper
 

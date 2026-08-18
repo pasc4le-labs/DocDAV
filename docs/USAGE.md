@@ -2,35 +2,65 @@
 
 A walkthrough of authoring documentation and running the site.
 
-## Authoring a page
+## Authoring a product
 
-Drop a Markdown file anywhere under a product folder. The file path (minus the
-`.md` extension) becomes its URL; subfolders become nested routes.
+Each top-level folder on the drive is a **product**. A product is defined by a
+`docs.yaml` manifest at its root — the single source of truth for metadata,
+sidebar categories and page ordering. A product folder without a manifest is
+ignored.
 
 ```
-<docsRoot>/atlas/getting-started.md   →  /atlas/getting-started
-<docsRoot>/atlas/reference/cli.md     →  /atlas/reference/cli
+<docsRoot>/atlas/
+  docs.yaml          # manifest (required)
+  index.md
+  getting-started.md
+  reference/cli.md
+  pricing.xlsx       # any supported format
 ```
 
-Give each page a title and optional metadata in its frontmatter:
-
-```markdown
----
-title: Getting started
-description: Fastest path to a running Atlas
-category: Overview
-order: 2
----
+```yaml
+# docs.yaml
+title: Atlas                 # optional → product folder name
+description: Our flagship.   # optional → homepage card
+cover: cover.png             # optional → homepage card image
+pages:
+  - title: Getting started
+    source: getting-started.md   # path relative to the product folder
+    category: Overview           # optional → "General"
+    description: Fastest path to a running Atlas
+    updated: 2026-08-01          # optional → file last-modified
+  - title: CLI reference
+    source: reference/cli.md
+    category: CLI Reference
+  - title: Pricing
+    source: pricing.xlsx         # binary formats supported
 ```
 
-- Omitting `category` puts the page in a default group.
-- `order` sorts pages within a category (lower first).
-- The product `index.md` becomes the product's landing page. Its `cover`
-  (path or data URI) and `description` feed the homepage card.
+- The sidebar's **categories** come from `pages[].category`, in
+  first-appearance order (missing → `General`).
+- **Page order** is the page's position in the `pages` list.
+- A page's URL is its `source` minus the extension
+  (`reference/cli.md` → `/atlas/reference/cli`).
+- **Only pages listed in the manifest are served.** Unlisted files and dangling
+  `source` entries are skipped (with a console warning); they never break the
+  rest of the product.
 
-Add a file anywhere on the drive and refresh; it appears in the sidebar
-immediately. The sample harness uses a 2s directory cache so it behaves like a
-live drive.
+## Multi-format support
+
+| Format        | Extension                      | Notes                              |
+| ------------- | ------------------------------ | ---------------------------------- |
+| Markdown      | `.md`, `.markdown`             | Full component syntax (below)      |
+| Plain text    | `.txt`                         | Escaped, wrapped in paragraphs     |
+| Raw HTML      | `.html`, `.htm`                | Sanitized pass-through (scripts stripped) |
+| AsciiDoc      | `.adoc`, `.asciidoc`           | Rendered to HTML                   |
+| CSV           | `.csv`                         | Rendered as a table                |
+| Word          | `.docx`                        | Converted to HTML                  |
+| Excel         | `.xlsx`                        | First sheet rendered as a table    |
+
+`.doc` (legacy binary) is **not** supported.
+
+Add a page to the manifest and refresh; it appears in the sidebar immediately.
+The sample harness uses a 2s directory cache so it behaves like a live drive.
 
 ## Running locally against sample content
 

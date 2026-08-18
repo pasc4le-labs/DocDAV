@@ -1,21 +1,19 @@
-import matter from 'gray-matter';
 import { env } from '$env/dynamic/private';
-import { renderMd } from './md';
+import { parse as parseYaml } from 'yaml';
+import { detectKind, isBinaryKind, renderBodyAsync } from './format';
 
 /**
- * Server-only WebDAV Markdown loader for drive-docs.
+ * Server-only WebDAV multi-format loader for drive-docs.
  *
- * Reads every .md file under a WebDAV share (recursively — PROPFIND per
- * directory, because some servers reject Depth: infinity), parses
- * gray-matter frontmatter, renders the body to HTML with server-side syntax
- * highlighting, and caches the whole result in-memory for a TTL.
+ * Content model (per-product manifest — single source of truth):
+ *   <baseUrl>/<product>/docs.yaml      # manifest (required)
+ *   <baseUrl>/<product>/...            # content files listed in the manifest
  *
- * Content model:
- *   <baseUrl>/<product>/<category…>/<page>.md
- *   product  = top-level directory
- *   category / order = gray-matter frontmatter (drives the sidebar)
+ * Every page must be listed in its product's `docs.yaml`. There is NO
+ * auto-include and no frontmatter parsing (backwards compatibility dropped):
+ * a product dir without a manifest contributes nothing, and a file not listed
+ * in a manifest is ignored. `source` paths resolve relative to the product dir.
  */
-
 export interface DocMeta {
   id: string; // path relative to base, no extension (product/category/slug)
   title: string;
@@ -24,12 +22,32 @@ export interface DocMeta {
   category: string;
   order: number;
   updated?: string;
+  /** Product-level cover (populated only on the product's landing metadata). */
   cover?: string;
   path: string;
   html: string;
 }
 
-// Configure marked once: highlight code blocks server-side (see md.ts).
+/** Product-level metadata from the manifest top level. */
+export interface ProductMeta {
+  description?: string;
+  cover?: string;
+}
+
+interface PageSpec {
+  title?: string;
+  source: string;
+  category?: string;
+  description?: string;
+  updated?: string;
+}
+
+interface Manifest {
+  title?: string;
+  description?: string;
+  cover?: string;
+  pages?: PageSpec[];
+}
 
 const base = ensureTrailingSlash(env.WEBDAV_URL || 'http://127.0.0.1:8090/');
 const ttlMs = Number(env.WEBDAV_TTL_MS || 30_000);
@@ -39,11 +57,19 @@ const auth =
     `${env.WEBDAV_USER || 'demo'}:${env.WEBDAV_PASS || 'secret'}`
   ).toString('base64');
 
-const fileCache = new Map<
-  string,
-  { expiresAt: number; text: string; lastModified?: string }
->();
-const docsCache: { at: number; docs: DocMeta[] | null } = { at: 0, docs: null };
+interface CacheEntry {
+  expiresAt: number;
+  text?: string;
+  buffer?: ArrayBuffer;
+  lastModified?: string;
+}
+const fileCache = new Map<string, CacheEntry>();
+interface Index {
+  at: number;
+  docs: DocMeta[];
+  products: Map<string, ProductMeta>;
+}
+let indexCache: Index | null = null;
 
 const PROPFIND_BODY = `<?xml version="1.0"?>
 <d:propfind xmlns:d="DAV:"><d:allprop/></d:propfind>`;
@@ -66,109 +92,183 @@ function coerceString(v: unknown): string | undefined {
   return undefined;
 }
 
-async function rawFetch(url: string): Promise<{ text: string; lastModified?: string }> {
+async function rawFetch(
+  url: string,
+  binary: boolean
+): Promise<{ text?: string; buffer?: ArrayBuffer; lastModified?: string }> {
   const hit = fileCache.get(url);
   if (hit && hit.expiresAt > Date.now()) return hit;
   const res = await fetch(url, { headers: { Authorization: auth } });
   if (!res.ok) {
     throw new Error(`WebDAV GET ${url} failed: ${res.status} ${res.statusText}`);
   }
-  const value = {
-    text: await res.text(),
-    lastModified: res.headers.get('last-modified') ?? undefined,
-  };
+  const lastModified = res.headers.get('last-modified') ?? undefined;
+  const value = binary
+    ? { buffer: await res.arrayBuffer(), lastModified }
+    : { text: await res.text(), lastModified };
   fileCache.set(url, { ...value, expiresAt: Date.now() + ttlMs });
   return value;
 }
 
-/** Recursively list all .md files under the share. */
-async function listMarkdownFiles(): Promise<string[]> {
-  const files: string[] = [];
-  const seen = new Set<string>();
-  const basePath = new URL(base).pathname;
+interface PropEntry {
+  rel: string;
+  isCollection: boolean;
+}
 
+/** PROPFIND a directory (Depth 1) and return its immediate children. */
+async function propfind(relDir: string): Promise<PropEntry[]> {
+  const url = relDir ? new URL(`${encodeURI(relDir)}/`, base).href : base;
+  const res = await fetch(url, {
+    method: 'PROPFIND',
+    headers: { Authorization: auth, Depth: '1', 'Content-Type': 'application/xml' },
+    body: PROPFIND_BODY,
+  });
+  if (!res.ok) {
+    throw new Error(`WebDAV PROPFIND ${url} failed: ${res.status} ${res.statusText}`);
+  }
+  const xml = await res.text();
+  const basePath = new URL(base).pathname;
   const relOf = (pathname: string) =>
     pathname.startsWith(basePath)
       ? pathname.slice(basePath.length)
       : pathname.replace(/^\/+/, '');
 
-  async function propfind(relDir: string) {
-    const url = relDir ? new URL(`${encodeURI(relDir)}/`, base).href : base;
-    const res = await fetch(url, {
-      method: 'PROPFIND',
-      headers: { Authorization: auth, Depth: '1', 'Content-Type': 'application/xml' },
-      body: PROPFIND_BODY,
-    });
-    if (!res.ok) {
-      throw new Error(`WebDAV PROPFIND ${url} failed: ${res.status} ${res.statusText}`);
-    }
-    const xml = await res.text();
-    const out: { rel: string; isCollection: boolean }[] = [];
-    const blockRe = /<(?:\w+:)?response[^>]*>([\s\S]*?)<\/(?:\w+:)?response>/gi;
-    let block: RegExpExecArray | null;
-    while ((block = blockRe.exec(xml)) !== null) {
-      const inner = block[1];
-      const hrefMatch = /<(?:\w+:)?href[^>]*>([^<]*)<\/(?:\w+:)?href>/i.exec(inner);
-      if (!hrefMatch) continue;
-      const pathname = new URL(decodeURIComponent(htmlDecode(hrefMatch[1])), new URL(url))
-        .pathname;
-      const rel = relOf(pathname).replace(/\/+$/, '').replace(/^\/+/, '');
-      if (!rel) continue;
-      const isCollection =
-        /<(?:\w+:)?resourcetype[^>]*>[\s\S]*?<(?:\w+:)?collection(?:\s[^>]*)?\/?>/i.test(
-          inner
-        );
-      out.push({ rel, isCollection });
-    }
-    return out;
+  const out: PropEntry[] = [];
+  const blockRe = /<(?:\w+:)?response[^>]*>([\s\S]*?)<\/(?:\w+:)?response>/gi;
+  let block: RegExpExecArray | null;
+  while ((block = blockRe.exec(xml)) !== null) {
+    const inner = block[1];
+    const hrefMatch = /<(?:\w+:)?href[^>]*>([^<]*)<\/(?:\w+:)?href>/i.exec(inner);
+    if (!hrefMatch) continue;
+    const pathname = new URL(decodeURIComponent(htmlDecode(hrefMatch[1])), new URL(url))
+      .pathname;
+    const rel = relOf(pathname).replace(/\/+$/, '').replace(/^\/+/, '');
+    if (!rel) continue;
+    const isCollection =
+      /<(?:\w+:)?resourcetype[^>]*>[\s\S]*?<(?:\w+:)?collection(?:\s[^>]*)?\/?>/i.test(
+        inner
+      );
+    out.push({ rel, isCollection });
   }
-
-  async function walk(relDir: string) {
-    const key = relDir || '.';
-    if (seen.has(key)) return;
-    seen.add(key);
-    for (const entry of await propfind(relDir)) {
-      if (entry.isCollection) await walk(entry.rel);
-      else if (/\.(md|markdown)$/i.test(entry.rel)) files.push(entry.rel);
-    }
-  }
-
-  await walk('');
-  return files.sort();
+  return out;
 }
 
-async function loadDoc(relPath: string): Promise<DocMeta> {
-  const href = new URL(encodeURI(relPath), base).href;
-  const { text, lastModified } = await rawFetch(href);
-  const file = matter(text);
-  const fm = (file.data ?? {}) as Record<string, unknown>;
-  const id = relPath.replace(/\.(md|markdown)$/i, '');
-  const parts = relPath.split('/');
+/** Fetch and parse a product's `docs.yaml` manifest. */
+async function loadManifest(relYaml: string): Promise<Manifest> {
+  const href = new URL(encodeURI(relYaml), base).href;
+  const { text } = await rawFetch(href, false);
+  const parsed = (parseYaml(text ?? '') ?? {}) as Partial<Manifest>;
   return {
-    id,
-    title: typeof fm.title === 'string' && fm.title ? fm.title : id.split('/').pop() ?? id,
-    description: typeof fm.description === 'string' ? fm.description : undefined,
-    cover: typeof fm.cover === 'string' && fm.cover ? fm.cover : undefined,
-    product: parts[0] ?? 'docs',
-    category: typeof fm.category === 'string' && fm.category ? fm.category : 'General',
-    order: typeof fm.order === 'number' ? fm.order : 9999,
-    updated: coerceString(fm.updated) ?? lastModified,
-    path: relPath,
-    html: renderMd(file.content || ''),
+    title: coerceString(parsed.title),
+    description: coerceString(parsed.description),
+    cover: coerceString(parsed.cover),
+    pages: Array.isArray(parsed.pages) ? (parsed.pages as PageSpec[]) : [],
   };
 }
 
-/** Full doc index for the share, cached for the TTL. */
-export async function getDocs(): Promise<DocMeta[]> {
-  const now = Date.now();
-  if (docsCache.docs && now - docsCache.at < ttlMs) {
-    return docsCache.docs;
+function titleFromPath(relPath: string): string {
+  const baseName = relPath.split('/').pop() ?? relPath;
+  const stem = baseName.replace(/\.[^/.]+$/, '');
+  return stem
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/** Load + render a single page listed in a manifest. Throws on dangling source. */
+async function loadPage(
+  relPath: string,
+  spec: PageSpec,
+  order: number,
+  product: string
+): Promise<DocMeta> {
+  const kind = detectKind(relPath);
+  if (!kind) {
+    throw new Error(`Unsupported format for ${relPath}`);
   }
-  const files = await listMarkdownFiles();
-  const docs = await Promise.all(files.map(loadDoc));
-  docsCache.at = now;
-  docsCache.docs = docs;
-  return docs;
+  const href = new URL(encodeURI(relPath), base).href;
+  const isBinary = isBinaryKind(kind);
+  const { text, buffer, lastModified } = await rawFetch(href, isBinary);
+  const html = await renderBodyAsync(kind, { text, buffer });
+  const id = relPath.replace(/\.[^/.]+$/, '');
+  return {
+    id,
+    title:
+      (typeof spec.title === 'string' && spec.title.trim() ? spec.title.trim() : undefined) ??
+      titleFromPath(relPath),
+    description: coerceString(spec.description) ?? undefined,
+    product,
+    category: (coerceString(spec.category) || 'General').trim(),
+    order,
+    updated: coerceString(spec.updated) ?? lastModified,
+    path: relPath,
+    html,
+  };
+}
+
+async function buildIndex(): Promise<Index> {
+  const docs: DocMeta[] = [];
+  const products = new Map<string, ProductMeta>();
+
+  const top = await propfind('');
+  const productDirs = top.filter((e) => e.isCollection).map((e) => e.rel).sort();
+
+  for (const dir of productDirs) {
+    let manifestRel: string | undefined;
+    let manifest: Manifest;
+    try {
+      const entries = await propfind(dir);
+      const yamlEntry = entries.find(
+        (e) => !e.isCollection && /^docs\.ya?ml$/i.test(e.rel.split('/').pop() ?? '')
+      );
+      if (!yamlEntry) continue; // no manifest → contributes nothing
+      manifestRel = yamlEntry.rel;
+      manifest = await loadManifest(manifestRel);
+    } catch (err) {
+      console.warn(`[dav] skipping product "${dir}":`, err);
+      continue;
+    }
+
+    products.set(dir, {
+      description: manifest.description,
+      cover: manifest.cover,
+    });
+
+    const pages = manifest.pages ?? [];
+    for (let i = 0; i < pages.length; i++) {
+      const spec = pages[i];
+      if (!spec || typeof spec.source !== 'string' || !spec.source) continue;
+      const relPath = `${dir}/${spec.source}`;
+      try {
+        docs.push(await loadPage(relPath, spec, i, dir));
+      } catch (err) {
+        console.warn(`[dav] skipping page "${relPath}":`, err);
+      }
+    }
+  }
+
+  docs.sort((a, b) => a.product.localeCompare(b.product) || a.order - b.order);
+  return { at: Date.now(), docs, products };
+}
+
+async function getIndex(): Promise<Index> {
+  const now = Date.now();
+  if (indexCache && now - indexCache.at < ttlMs) {
+    return indexCache;
+  }
+  indexCache = await buildIndex();
+  return indexCache;
+}
+
+/** Full doc index, cached for the TTL. */
+export async function getDocs(): Promise<DocMeta[]> {
+  return (await getIndex()).docs;
+}
+
+/** Product-level metadata (title/description/cover) from manifests. */
+export async function getProductsMeta(): Promise<Map<string, ProductMeta>> {
+  return (await getIndex()).products;
 }
 
 /** Fetch a single doc by id (path without extension). */

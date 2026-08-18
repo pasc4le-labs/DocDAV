@@ -1,9 +1,3 @@
----
-title: CLI reference
-description: All Atlas commands
-category: CLI Reference
-order: 1
----
 
 # CLI reference
 

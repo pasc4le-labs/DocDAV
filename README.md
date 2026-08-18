@@ -6,9 +6,12 @@ self-hosted server); DocDAV reads it over standard WebDAV and renders it as
 fast, searchable, per-product docs. Edit a file, refresh the page, and it is
 live. No rebuild, no build pipeline, no extra moving parts.
 
-Each folder on the drive becomes a product. The site builds the sidebar,
-search, and per-product access control automatically from your files, and it
-runs anywhere a container runs.
+Each folder on the drive becomes a product, declared by a small `docs.yaml`
+manifest at the product root that lists its pages, categories and ordering.
+The site renders those pages from **Markdown, plain text, raw HTML, AsciiDoc,
+CSV, .docx and .xlsx**, and serves per-product access control automatically.
+A product without a manifest contributes nothing; files not listed in a
+manifest are ignored — no build step, no hidden auto-includes.
 
 Because it speaks standard WebDAV, it works out of the box with most cloud
 storage and file servers:

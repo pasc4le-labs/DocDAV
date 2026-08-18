@@ -1,9 +1,3 @@
----
-title: Concepts
-description: Core concepts behind the scoring engine
-category: Concepts
-order: 1
----
 
 # Concepts
 

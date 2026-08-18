@@ -1,9 +1,3 @@
----
-title: Troubleshooting
-description: Common issues and fixes
-category: Operations
-order: 2
----
 
 # Troubleshooting
 

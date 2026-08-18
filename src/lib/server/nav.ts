@@ -1,7 +1,7 @@
-import type { DocMeta } from './dav';
+import type { DocMeta, ProductMeta } from './dav';
 
 /** Turn collection entries into nav/sidebar structures. Sidebar grouping and
- * ordering come from each doc's gray-matter (`category`, `order`, `title`);
+ * ordering come from each page's manifest entry (`category`, list position);
  * `product` comes from the top-level directory. */
 
 export interface SidebarItem {
@@ -32,7 +32,10 @@ export function productLabel(name: string): string {
     .join(' ');
 }
 
-export function listProducts(docs: DocMeta[]): ProductInfo[] {
+export function listProducts(
+  docs: DocMeta[],
+  meta: Map<string, ProductMeta> = new Map()
+): ProductInfo[] {
   const byProduct = new Map<string, DocMeta[]>();
   for (const d of docs) {
     const arr = byProduct.get(d.product) ?? [];
@@ -42,15 +45,14 @@ export function listProducts(docs: DocMeta[]): ProductInfo[] {
   return [...byProduct.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([name, items]) => {
-      // Use the product index doc, when present, for description/cover.
-      const index = items.find((d) => d.id === `${name}/index`);
+      const m = meta.get(name) ?? {};
       return {
         name,
         label: productLabel(name),
         href: `/${name}`,
         count: items.length,
-        description: index?.description,
-        cover: typeof index?.cover === 'string' && index.cover ? index.cover : undefined,
+        description: m.description,
+        cover: typeof m.cover === 'string' && m.cover ? m.cover : undefined,
       };
     });
 }

@@ -1,9 +1,3 @@
----
-title: Authoring with components
-description: Callouts, banners, procedures and toggles you can drop into any page
-category: Guides
-order: 3
----
 
 # Authoring with components
 

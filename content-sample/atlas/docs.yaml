@@ -1,0 +1,28 @@
+title: Atlas
+description: Our flagship platform, powered by a live WebDAV drive.
+cover: /images/atlas-cover.svg
+pages:
+  - title: Atlas — Overview
+    source: index.md
+    description: What Atlas is and how to use this documentation
+    category: Overview
+    updated: 2026-08-01
+  - title: Getting started
+    source: getting-started.md
+    description: Fastest path to a running Atlas
+    category: Overview
+    updated: 2026-08-01
+  - title: Authoring with components
+    source: authoring.md
+    description: Callouts, banners, procedures and toggles you can drop into any page
+    category: Guides
+    updated: 2026-08-01
+  - title: CLI reference
+    source: reference/cli.md
+    description: All Atlas commands
+    category: CLI Reference
+    updated: 2026-08-01
+  - title: Pricing
+    source: pricing.xlsx
+    description: Public pricing tiers (spreadsheet)
+    category: Reference

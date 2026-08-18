@@ -1,38 +1,27 @@
----
-title: Atlas — Overview
-description: What Atlas is and how to use this documentation
-cover: /images/atlas-cover.svg
-category: Overview
-order: 1
----
-
 # Atlas
 
 Atlas is the core platform. This documentation is split into **one folder per
-product** on the drive, and each page's sidebar position is derived from its
-frontmatter (`category` and `order`).
+product** on the drive, and each product's pages are declared in a `docs.yaml`
+manifest at the product root.
 
 ## How nav works
 
-The sidebar is built automatically from each Markdown file's gray-matter:
+The sidebar is built from the product's `docs.yaml` manifest — every page must
+be listed there, and its sidebar position and category come from the manifest:
 
 ```yaml
----
-title: Getting started
-category: Overview
-order: 2
----
+# docs.yaml
+title: Atlas
+description: Our flagship platform.
+pages:
+  - title: Getting started
+    source: getting-started.md
+    category: Overview
 ```
 
 - **product** — from the top-level directory
-- **category** — sidebar group
-- **order** — position inside the group
+- **category** — sidebar group, from the manifest (default `General`)
+- **order** — the page's position in the `pages` list
 
-> Add a file, refresh, and it appears in the sidebar. No rebuild.
-
-## Products
-
-| Product      | Folder          |
-| ------------ | --------------- |
-| Atlas        | `atlas/`        |
-| Scorekeeper  | `scorekeeper/`  |
+> Add a page to the manifest, refresh, and it appears in the sidebar. Files not
+> listed in the manifest are ignored.

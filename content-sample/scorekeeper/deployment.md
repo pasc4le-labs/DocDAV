@@ -1,9 +1,3 @@
----
-title: Deployment
-description: Deploy Scorekeeper to Vercel
-category: Operations
-order: 1
----
 
 # Deployment
 

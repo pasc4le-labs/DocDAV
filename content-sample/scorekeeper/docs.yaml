@@ -1,0 +1,20 @@
+title: Scorekeeper
+description: Real-time scoring for your games.
+cover: /images/scorekeeper-cover.svg
+pages:
+  - title: Scorekeeper — Overview
+    source: index.md
+    description: Real-time scoring for your games
+    category: Overview
+  - title: Concepts
+    source: concepts.md
+    description: Core concepts behind the scoring engine
+    category: Concepts
+  - title: Deployment
+    source: deployment.md
+    description: Deploy Scorekeeper to Vercel
+    category: Operations
+  - title: Troubleshooting
+    source: troubleshooting.md
+    description: Common issues and fixes
+    category: Operations

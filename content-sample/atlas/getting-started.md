@@ -1,9 +1,3 @@
----
-title: Getting started
-description: Fastest path to a running Atlas
-category: Overview
-order: 2
----
 
 # Getting started
 

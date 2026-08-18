@@ -2,8 +2,10 @@
 
 `DocDAV` is a SvelteKit app that turns a WebDAV share into a live,
 multi-product documentation site. Every top-level folder on the drive is a
-product; each Markdown page is rendered server-side on request and cached
-in-memory for a short TTL, so content changes appear without a rebuild.
+product, declared by a `docs.yaml` manifest; its pages are rendered
+server-side on request from multiple formats (`md/txt/html/adoc/csv/docx/xlsx`)
+and cached in-memory for a short TTL, so content changes appear without a
+rebuild.
 
 ## Architecture
 
@@ -22,7 +24,8 @@ src/
     ├── config.ts                 navbar branding (env-driven)
     ├── ui.svelte.ts              sidebar state (collapse / mobile drawer)
     └── server/
-        ├── dav.ts                WebDAV Markdown loader + TTL cache
+        ├── dav.ts                WebDAV multi-format loader + manifest + TTL cache
+        ├── format.ts             render dispatch (md/txt/html/adoc/csv/docx/xlsx)
         ├── md.ts                 Markdown rendering + doc components
         ├── nav.ts                sidebar model (categories, ordering)
         └── auth.ts / gate.ts     per-product and site passwords
@@ -32,29 +35,41 @@ src/
 
 ```
 <docsRoot>/
-  <product>/            ← every top-level folder is a product
+  <product>/          ← every top-level folder is a product
+    docs.yaml         ← REQUIRED manifest (no manifest → product is ignored)
     <page>.md
-    <subdir>/<page>.md  ← nested pages work too
+    <subdir>/<page>.docx   ← pages can nest and use any supported format
 ```
 
-Sidebar grouping and ordering come from each page's gray-matter frontmatter:
+The manifest is the single source of truth for metadata, categories and
+ordering. Sidebar grouping and order come from the `pages` list:
 
 ```yaml
----
-title: Getting started
-description: Fastest path to a running Atlas
-category: Overview
-order: 2
----
+title: Atlas
+description: Our flagship platform.
+cover: cover.png
+pages:
+  - title: Getting started
+    source: getting-started.md
+    category: Overview           # optional → "General"
+    description: Fastest path to a running Atlas
+    updated: 2026-08-01          # optional → file last-modified
+  - title: Pricing
+    source: pricing.xlsx         # binary formats supported
 ```
 
-| Frontmatter    | Purpose                                                              |
-| -------------- | ------------------------------------------------------------------- |
-| `title`        | page title + sidebar label                                          |
-| `category`     | sidebar group                                                        |
-| `order`        | sort position within the category                                    |
-| `description`  | shown under the page title; the index doc's becomes the homepage card description |
-| `cover`        | (index doc only) homepage card cover image                           |
+| Manifest key | Purpose                                                              |
+| ------------ | ------------------------------------------------------------------- |
+| (top) `title` / `description` / `cover` | product metadata → homepage card          |
+| `pages[].title` | page title + sidebar label (default: filename)                    |
+| `pages[].source` | file path relative to the product folder                          |
+| `pages[].category` | sidebar group (default `General`, first-appearance order)        |
+| (list position) | page order                                                        |
+| `pages[].description` | shown under the page title                                          |
+| `pages[].updated` | display date (default: file last-modified)                        |
+
+Only pages listed in the manifest are served — no frontmatter, no
+auto-include. `.doc` is not supported.
 
 ## Markdown components
 
@@ -135,7 +150,7 @@ drive, so there is no cloud dependency.
 ## Look & feel
 
 - top bar with a customizable navbar and product switcher
-- sticky sidebar: categories from gray-matter, active page highlighted
+- sticky sidebar: categories from the manifest, active page highlighted
 - mobile drawer: a hamburger toggle slides the sidebar in/out on small screens (with a backdrop)
 - shadcn-style neutral design (Inter, subtle borders/radii, focus rings)
 - server-side syntax highlighting (highlight.js) with a code toolbar (Copy, Copy as Markdown, Open in new tab)
@@ -154,8 +169,8 @@ pnpm check      # svelte-kit sync + svelte-check
 HOST=127.0.0.1 PORT=4323 node build/index.js   # run the production build
 ```
 
-Core dependencies: `@sveltejs/kit`, `svelte` 5, `marked`, `gray-matter`,
-`highlight.js`, `mermaid`, `remixicon`.
+Core dependencies: `@sveltejs/kit`, `svelte` 5, `marked`, `yaml`, `mammoth`,
+`xlsx`, `asciidoctor`, `sanitize-html`, `highlight.js`, `mermaid`, `remixicon`.
 
 > `rclone` is used only by the local test harness (`pnpm webdav:sample`). In
 > production the loader speaks WebDAV directly over HTTP, so it runs fine in a
@@ -163,10 +178,13 @@ Core dependencies: `@sveltejs/kit`, `svelte` 5, `marked`, `gray-matter`,
 
 ## Notes & trade-offs
 
-- The loader **recursively** walks the share (PROPFIND per directory, since
-  some servers reject `Depth: infinity`) and caches the whole index for
-  `WEBDAV_TTL_MS`.
-- Entries must match the expected shape; YAML `Date`s are coerced to ISO strings.
+- The loader reads each product's `docs.yaml` (PROPFIND per product directory),
+  then fetches exactly the pages listed in the manifest; the whole index is
+  cached for `WEBDAV_TTL_MS`. It does **not** walk the whole tree or
+  auto-include unlisted files.
+- `updated` / manifest YAML `Date`s are coerced to ISO strings.
+- Raw `.html` pages are sanitized (scripts/stripped attributes removed) before
+  rendering.
 - Passwords in `?key=` shared links travel in the URL. Fine for docs you hand
   out, not a substitute for real auth on sensitive content.
 
