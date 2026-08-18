@@ -170,7 +170,8 @@ Core dependencies: `@sveltejs/kit`, `svelte` 5, `marked`, `gray-matter`,
 - Passwords in `?key=` shared links travel in the URL. Fine for docs you hand
   out, not a substitute for real auth on sensitive content.
 
-See [USAGE.md](USAGE.md) for a writing walkthrough.
+See [USAGE.md](USAGE.md) for a writing walkthrough and [DOCKER.md](DOCKER.md)
+for building and publishing the container image.
 
 ## License
 
