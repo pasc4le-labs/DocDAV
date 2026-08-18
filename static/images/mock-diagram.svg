@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-label="How drive-docs serves live Markdown from a WebDAV drive">
+  <rect width="1200" height="420" fill="#f8fafc" rx="16"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" text-anchor="middle">
+    <!-- Source -->
+    <rect x="60" y="160" width="300" height="100" rx="12" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2"/>
+    <text x="210" y="202" fill="#0c4a6e">WebDAV Drive</text>
+    <text x="210" y="226" fill="#0c4a6e" font-size="14">atlas/*.md, scorekeeper/*.md</text>
+    <!-- Server -->
+    <rect x="450" y="160" width="300" height="100" rx="12" fill="#ede9fe" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="600" y="202" fill="#4c1d95">drive-docs</text>
+    <text x="600" y="226" fill="#4c1d95" font-size="14">renders Markdown → HTML</text>
+    <!-- Browser -->
+    <rect x="840" y="160" width="300" height="100" rx="12" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
+    <text x="990" y="202" fill="#064e3b">Browser</text>
+    <text x="990" y="226" fill="#064e3b" font-size="14">refreshes → sees updates</text>
+  </g>
+  <g stroke="#64748b" stroke-width="3" marker-end="url(#arrow)" fill="none">
+    <path d="M360 210 H450"/>
+    <path d="M750 210 H840"/>
+  </g>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <text x="600" y="330" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#475569" text-anchor="middle">Edit a file on the drive → refresh → done. No rebuild.</text>
+</svg>
