@@ -69,8 +69,8 @@ pages:
 | `pages[].description` | shown under the page title                                          |
 | `pages[].updated` | display date (default: file last-modified)                        |
 
-Only pages listed in the manifest are served — no frontmatter, no
-auto-include. `.doc` is not supported.
+Only pages listed in the manifest are served (no frontmatter, no
+auto-include). `.doc` is not supported.
 
 ## Markdown components
 

@@ -1,17 +1,16 @@
 ![DocDAV](static/docdav-hero.png)
 
-Turn any WebDAV drive into a clean, modern documentation site for your
-products. You keep writing plain Markdown in your own cloud storage (or a
-self-hosted server); DocDAV reads it over standard WebDAV and renders it as
-fast, searchable, per-product docs. Edit a file, refresh the page, and it is
-live. No rebuild, no build pipeline, no extra moving parts.
+DocDAV turns any WebDAV drive into a documentation site for your products.
+Write in your own cloud storage, or on a self-hosted server; DocDAV reads the
+files over WebDAV and renders them as clean, searchable, per-product docs.
+Edit a file, refresh the page, and it is live. No build step, no pipeline, no
+extra parts.
 
-Each folder on the drive becomes a product, declared by a small `docs.yaml`
-manifest at the product root that lists its pages, categories and ordering.
-The site renders those pages from **Markdown, plain text, raw HTML, AsciiDoc,
-CSV, .docx and .xlsx**, and serves per-product access control automatically.
-A product without a manifest contributes nothing; files not listed in a
-manifest are ignored — no build step, no hidden auto-includes.
+A product is a folder on the drive, described by a `docs.yaml` manifest that
+defines its pages, their categories and their order. Pages render from
+Markdown, plain text, raw HTML, AsciiDoc, CSV, .docx and .xlsx, each with
+optional per-product password protection. A folder without a manifest
+contributes nothing, and files not listed in one are not served.
 
 Because it speaks standard WebDAV, it works out of the box with most cloud
 storage and file servers:

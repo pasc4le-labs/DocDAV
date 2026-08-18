@@ -30,8 +30,8 @@ docker run -d --name docdav -p 4323:4323 \
 
 Required env is the same as any deployment: `WEBDAV_URL`, `WEBDAV_USER`,
 `WEBDAV_PASS`. See [README.md](README.md#configuration-env) for the full list
-(note: access passwords now live in the content — `password:` per product in
-`docs.yaml`, or a root `site.yaml` for the homepage — not in env).
+(note: access passwords now live in the content, per product in `docs.yaml`,
+or a root `site.yaml` for the homepage; not in env).
 
 ## Docker Compose
 

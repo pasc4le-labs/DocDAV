@@ -5,7 +5,7 @@ A walkthrough of authoring documentation and running the site.
 ## Authoring a product
 
 Each top-level folder on the drive is a **product**. A product is defined by a
-`docs.yaml` manifest at its root — the single source of truth for metadata,
+`docs.yaml` manifest at its root, the single source of truth for metadata,
 sidebar categories and page ordering. A product folder without a manifest is
 ignored.
 
