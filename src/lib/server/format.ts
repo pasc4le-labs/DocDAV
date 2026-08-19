@@ -82,10 +82,14 @@ function sheetToMarkdown(wb: XLSX.WorkBook): string {
 }
 
 /** Render a document to an HTML fragment based on its content kind. */
-export function renderBody(kind: ContentKind, data: ContentData): string {
+export function renderBody(
+  kind: ContentKind,
+  data: ContentData,
+  opts?: { baseDir?: string },
+): string {
   switch (kind) {
     case 'md':
-      return renderMd(data.text ?? '');
+      return renderMd(data.text ?? '', { baseDir: opts?.baseDir });
     case 'txt': {
       // Escape, then wrap blank-line-separated paragraphs in <p>.
       const paras = (data.text ?? '')
@@ -144,7 +148,11 @@ export function renderBody(kind: ContentKind, data: ContentData): string {
 }
 
 /** Async rendering (mammoth + asciidoctor are Promise-based). */
-export async function renderBodyAsync(kind: ContentKind, data: ContentData): Promise<string> {
+export async function renderBodyAsync(
+  kind: ContentKind,
+  data: ContentData,
+  opts?: { baseDir?: string },
+): Promise<string> {
   if (kind === 'docx') {
     const { convertToHtml } = mammoth;
     const buffer = Buffer.from(data.buffer ?? new ArrayBuffer(0));
@@ -157,5 +165,5 @@ export async function renderBodyAsync(kind: ContentKind, data: ContentData): Pro
       standalone: false,
     });
   }
-  return renderBody(kind, data);
+  return renderBody(kind, data, opts);
 }

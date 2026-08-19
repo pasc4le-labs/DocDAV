@@ -53,6 +53,32 @@ describe('renderBody: md', () => {
     expect(html).toContain('<h1');
     expect(html).toContain('<em>emphasis</em>');
   });
+
+  it('rewrites a relative image src through /assets/<baseDir>', () => {
+    const html = renderBody(
+      'md',
+      { text: '![diagram](mock-diagram.svg "A diagram")' },
+      { baseDir: 'atlas' },
+    );
+    expect(html).toContain('src="/assets/atlas/mock-diagram.svg"');
+    expect(html).toContain('alt="diagram"');
+    expect(html).toContain('title="A diagram"');
+  });
+
+  it('leaves absolute and external image srcs untouched', () => {
+    const md = '![a](/images/x.png) ![b](https://ex.com/y.jpg) ![c](data:image/png;base64,AAA)';
+    const html = renderBody('md', { text: md }, { baseDir: 'atlas' });
+    expect(html).toContain('src="/images/x.png"');
+    expect(html).toContain('src="https://ex.com/y.jpg"');
+    expect(html).toContain('src="data:image/png;base64,AAA"');
+    expect(html).not.toContain('/assets/atlas');
+  });
+
+  it('keeps baseDir for a relative image nested inside a callout', () => {
+    const md = '> [!NOTE]\n> ![diagram](nested.png)';
+    const html = renderBody('md', { text: md }, { baseDir: 'atlas' });
+    expect(html).toContain('src="/assets/atlas/nested.png"');
+  });
 });
 
 describe('renderBody: txt', () => {

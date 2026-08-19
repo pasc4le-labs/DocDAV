@@ -220,7 +220,9 @@ async function loadDocContent(doc: DocMeta): Promise<DocMeta> {
   const href = new URL(encodeURI(doc.path), base).href;
   const isBinary = isBinaryKind(kind);
   const { text, buffer, lastModified } = await rawFetch(href, isBinary);
-  const html = await renderBodyAsync(kind, { text, buffer });
+  const sl = doc.path.lastIndexOf('/');
+  const baseDir = sl === -1 ? '' : doc.path.slice(0, sl);
+  const html = await renderBodyAsync(kind, { text, buffer }, { baseDir });
   htmlCache.set(doc.id, { at: Date.now(), html });
   return { ...doc, updated: doc.updated ?? lastModified, html };
 }

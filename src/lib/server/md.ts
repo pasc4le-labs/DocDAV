@@ -2,6 +2,11 @@ import hljs from 'highlight.js/lib/common';
 import { marked } from 'marked';
 import { escapeHtml } from './text';
 
+/** Remote dir (relative to the WebDAV root) of the doc being rendered, used to
+ * resolve relative image hrefs to `/assets/...`. Set per renderMd call — the
+ * marked renderer reads it synchronously while parsing. */
+let imgBaseDir = '';
+
 /**
  * Markdown → HTML renderer for drive-docs.
  *
@@ -62,6 +67,18 @@ marked.use({
       const value = hljs.highlight(text, { language }).value;
       const cls = lang ? `language-${lang}` : '';
       return `<pre class="hljs"><code class="${cls}">${value}</code></pre>`;
+    },
+    image({ href, title, text }) {
+      // Relative image paths resolve against the source doc's remote dir and
+      // are proxied from the WebDAV share (see /assets/[...path]). Absolute
+      // URLs (/…, http…, data:, #anchors) pass through unchanged.
+      const h = href ?? '';
+      const src = /^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(h)
+        ? h
+        : `/assets/${imgBaseDir ? imgBaseDir + '/' : ''}${h}`;
+      let out = `<img src="${escapeHtml(src)}" alt="${escapeHtml(text ?? '')}"`;
+      if (title) out += ` title="${escapeHtml(title)}"`;
+      return out + '>';
     },
   },
 });
@@ -213,7 +230,7 @@ const BLOCKQUOTE = /^>\s?/;
 const CALLOUT_FIRST = /^\[!(\w+)\](?:\s*(.*))?$/;
 
 /** Split a Markdown source into plain-markdown vs already-rendered-HTML segments. */
-function scan(src: string): Segment[] {
+function scan(src: string, baseDir: string): Segment[] {
   const lines = src.split('\n');
   const segs: Segment[] = [];
   let buf: string[] = [];
@@ -261,7 +278,7 @@ function scan(src: string): Segment[] {
       flush();
       segs.push({
         kind: 'html',
-        value: `<details class="toggle"><summary><i class="ri-arrow-right-s-line toggle-chevron" aria-hidden="true"></i><span>${escapeHtml(summary)}</span></summary><div class="toggle-body">${renderMd(inner.join('\n'))}</div></details>`,
+        value: `<details class="toggle"><summary><i class="ri-arrow-right-s-line toggle-chevron" aria-hidden="true"></i><span>${escapeHtml(summary)}</span></summary><div class="toggle-body">${renderMd(inner.join('\n'), { baseDir })}</div></details>`,
       });
       continue;
     }
@@ -283,7 +300,7 @@ function scan(src: string): Segment[] {
           .slice(1)
           .map((l) => l.replace(BLOCKQUOTE, ''))
           .join('\n');
-        const body = renderMd(bodyMd);
+        const body = renderMd(bodyMd, { baseDir });
         const title = escapeHtml(customTitle || spec.title);
         const icon = !customTitle || spec.tone === 'banner' ? spec.icon : '';
         const titleHtml =
@@ -309,10 +326,13 @@ function scan(src: string): Segment[] {
   return segs;
 }
 
-/** Render a Markdown document (or block) to HTML, with components applied. */
-export function renderMd(src: string): string {
+/** Render a Markdown document (or block) to HTML, with components applied.
+ * `opts.baseDir` is the source doc's directory relative to the WebDAV root,
+ * used to resolve relative image references against the shared content. */
+export function renderMd(src: string, opts?: { baseDir?: string }): string {
+  imgBaseDir = opts?.baseDir ?? '';
   const out: string[] = [];
-  for (const seg of scan(src)) {
+  for (const seg of scan(src, imgBaseDir)) {
     out.push(seg.kind === 'md' ? (marked.parse(seg.value) as string) : seg.value);
   }
   return out.join('\n');
