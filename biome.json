@@ -19,7 +19,7 @@
       "!**/.svelte-kit",
       "!**/.git",
       "!**/.agents",
-      "!**/content-samples",
+      "!**/sample",
       "!**/static/images"
     ]
   },

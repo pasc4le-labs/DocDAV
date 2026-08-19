@@ -21,11 +21,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  // Launch BOTH the WebDAV server (rclone over ./content-samples) and the
+  // Launch BOTH the WebDAV server (rclone over ./sample) and the
   // built adapter-node app before the tests, and tear both down after.
   webServer: [
     {
-      command: `rclone serve webdav ./content-samples --addr :${WEBDAV_PORT} --user demo --pass secret --dir-cache-time 2s`,
+      command: `rclone serve webdav ./sample --addr :${WEBDAV_PORT} --user demo --pass secret --dir-cache-time 2s`,
       url: `http://127.0.0.1:${WEBDAV_PORT}/`,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,

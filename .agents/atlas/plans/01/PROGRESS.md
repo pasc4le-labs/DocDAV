@@ -22,10 +22,10 @@ Updated: 2026-08-18
   `nav.ts` reads product metadata (description/cover) from manifests; root
   route passes product meta through. Removed `gray-matter` everywhere.
 - **2026-08-18** — Migrated sample: stripped gray-matter frontmatter from all
-  `content-samples` md files, added `atlas/docs.yaml` + `scorekeeper/docs.yaml`,
+  `sample` md files, added `atlas/docs.yaml` + `scorekeeper/docs.yaml`,
   added binary `atlas/pricing.xlsx` generated via SheetJS.
 - **2026-08-18** — Verified end-to-end against a live local WebDAV server
-  (rclone over `content-samples/`): products list with manifest descriptions;
+  (rclone over `sample/`): products list with manifest descriptions;
   sidebar categories in first-appearance order (Overview→Guides→CLI
   Reference→Reference); page order = list position; xlsx rendered as a table;
   txt/html/adoc/csv all render correctly (html scripts sanitized); dangling

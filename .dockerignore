@@ -5,6 +5,6 @@ build
 .env
 .env.local
 *.log
-content-samples
+sample
 docs
 docker-compose.yml

@@ -114,7 +114,7 @@ the validator.
 ## Docs updates (user-facing, after code)
 - `README.md`, `docs/USAGE.md`, `docs/DOCKER.md`: document the new
   manifest-driven content model, `docs.yaml` schema, and format support.
-- Migrate `content-samples/atlas` to a `docs.yaml` and add at least one binary
+- Migrate `sample/atlas` to a `docs.yaml` and add at least one binary
   (`.docx` or `.xlsx`) so the new path is exercised by the sample.
 
 ## Verification

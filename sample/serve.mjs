@@ -1,8 +1,8 @@
-// Stands up a throwaway WebDAV server over `content-samples/` using rclone,
+// Stands up a throwaway WebDAV server over `sample/` using rclone,
 // so the POC can be validated locally against the real WebDAV protocol without
 // touching a remote drive. Serves on http://127.0.0.1:8090 (user: demo / pass: secret).
 //
-// Usage:  node content-samples/serve.mjs [dir] [port]
+// Usage:  node sample/serve.mjs [dir] [port]
 // Ctrl-C to stop.
 
 import { spawn } from "node:child_process";
@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Default to the self-contained sample dir this script lives in (repo root /content-samples).
+// Default to the self-contained sample dir this script lives in (repo root /sample).
 const dir = path.resolve(process.argv[2] ?? __dirname);
 const port = process.argv[3] ?? "8090";
 const user = process.env.WEBDAV_USER || "demo";

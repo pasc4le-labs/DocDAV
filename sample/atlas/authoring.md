@@ -81,10 +81,10 @@ the browser can reach — a public URL, or `/images/…` if you drop the file in
 the app's static folder. Images are responsive, rounded, and kept within the
 content column:
 
-![How drive-docs serves live Markdown from your WebDAV drive](/images/mock-diagram.svg)
+![How drive-docs serves live Markdown from your WebDAV drive](mock-diagram.svg)
 
 ```markdown
-![How drive-docs serves live Markdown from your drive](/images/mock-diagram.svg)
+![How drive-docs serves live Markdown from your drive](mock-diagram.svg)
 ```
 
 ## Diagrams
