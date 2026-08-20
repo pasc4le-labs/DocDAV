@@ -46,3 +46,28 @@ test.describe('gated product (atlas)', () => {
     await expect(page.locator('aside.sidebar').getByRole('link')).toHaveCount(5);
   });
 });
+
+// Site-wide gate (homepage, from sample/site.yaml password: site-secret).
+test.describe('site gate (homepage)', () => {
+  test('without a key the homepage shows the site gate, not the cards', async ({ page }) => {
+    const resp = await page.goto('/');
+    expect(resp?.status()).toBe(401);
+    await expect(page).toHaveTitle(/Protected/);
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    await expect(page.getByPlaceholder('Password')).toBeVisible();
+    await expect(page.locator('.cards .card')).toHaveCount(0);
+  });
+
+  test('a wrong site key keeps the gate closed', async ({ page }) => {
+    const resp = await page.goto('/?key=wrong');
+    expect(resp?.status()).toBe(401);
+    await expect(page).toHaveTitle(/Protected/);
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  });
+
+  test('the correct site key unlocks the homepage', async ({ page }) => {
+    await page.goto('/?key=site-secret');
+    await expect(page).not.toHaveTitle(/Protected/);
+    await expect(page.locator('.cards .card')).toHaveCount(2);
+  });
+});

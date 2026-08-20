@@ -1,15 +1,22 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // Homepage: product cards + search.
 test.describe('homepage', () => {
+  // The homepage is gated by the site password in sample/site.yaml
+  // (site-secret); unlock it with the key first so product cards render.
+  const unlocked = async (page: Page) => {
+    await page.goto('/?key=site-secret');
+    await expect(page).not.toHaveTitle(/Protected/);
+  };
+
   test('lists both product cards with correct titles, counts and links', async ({ page }) => {
-    await page.goto('/');
+    await unlocked(page);
     await expect(page.getByRole('heading', { name: 'Documentation' })).toBeVisible();
 
     const cards = page.locator('.cards .card');
     await expect(cards).toHaveCount(2);
 
-    // Sorted by product name: Atlas (5 pages) then Scorekeeper (4 pages).
+    // site.yaml order: Atlas then Scorekeeper. Atlas (5 pages) then Scorekeeper (4 pages).
     const atlas = cards.filter({ hasText: 'Atlas' });
     await expect(atlas).toBeVisible();
     await expect(atlas.locator('.name')).toHaveText('Atlas');
@@ -25,7 +32,7 @@ test.describe('homepage', () => {
   });
 
   test('search filters products to the matching one', async ({ page }) => {
-    await page.goto('/');
+    await unlocked(page);
     const search = page.getByLabel('Search projects');
     await expect(page.locator('.cards .card')).toHaveCount(2);
 
