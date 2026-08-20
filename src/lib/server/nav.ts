@@ -29,25 +29,26 @@ export function listProducts(
   docs: DocMeta[],
   meta: Map<string, ProductMeta> = new Map(),
 ): ProductInfo[] {
+  // Products are presented in the order they appear in `docs`, which (for the
+  // loader's index) is the declared `site.yaml.products` order — never re-sort
+  // by name here.
   const byProduct = new Map<string, DocMeta[]>();
   for (const d of docs) {
     const arr = byProduct.get(d.product) ?? [];
     arr.push(d);
     byProduct.set(d.product, arr);
   }
-  return [...byProduct.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([name, items]) => {
-      const m = meta.get(name) ?? {};
-      return {
-        name,
-        label: humanize(name),
-        href: `/${name}`,
-        count: items.length,
-        description: m.description,
-        cover: typeof m.cover === 'string' && m.cover ? m.cover : undefined,
-      };
-    });
+  return [...byProduct.entries()].map(([name, items]) => {
+    const m = meta.get(name) ?? {};
+    return {
+      name,
+      label: humanize(name),
+      href: `/${name}`,
+      count: items.length,
+      description: m.description,
+      cover: typeof m.cover === 'string' && m.cover ? m.cover : undefined,
+    };
+  });
 }
 
 export function sidebarFor(docs: DocMeta[], product: string): SidebarCategory[] {

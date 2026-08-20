@@ -1,0 +1,6 @@
+# site.yaml — REQUIRED root manifest: site password + product index
+# Products are listed in display order (top to bottom) on the landing page.
+password: "site-secret"   # site / homepage gate (existing behaviour)
+products:
+  - atlas                 # first-level subdirs, in display order
+  - scorekeeper

@@ -1,19 +1,26 @@
 import { parse as parseYaml } from 'yaml';
 import { env } from '$env/dynamic/private';
 import { detectKind, isBinaryKind, renderBodyAsync } from './format';
-import { htmlDecode, humanize } from './text';
+import { humanize } from './text';
 
 /**
  * Server-only WebDAV multi-format loader for drive-docs.
  *
- * Content model (per-product manifest — single source of truth):
- *   <baseUrl>/<product>/docs.yaml      # manifest (required)
- *   <baseUrl>/<product>/...            # content files listed in the manifest
+ * Content model (self-describing drive — declared, not discovered):
+ *   <baseUrl>/site.yaml                      # REQUIRED: site password + product index
+ *   <baseUrl>/<product>/docs.yaml            # REQUIRED per-product manifest
+ *   <baseUrl>/<product>/...                  # content files listed in the manifest
+ *
+ * Discovery is a handful of direct GETs against known paths — there is NO
+ * PROPFIND and NO drive enumeration. `site.yaml` lists the products (in
+ * display order); each product's `docs.yaml` lists its pages. A product
+ * listed in `site.yaml` whose `docs.yaml` is missing is skipped (a
+ * `console.warn`), never breaking the rest of the site. A product NOT listed
+ * in `site.yaml` is never served.
  *
  * Every page must be listed in its product's `docs.yaml`. There is NO
- * auto-include and no frontmatter parsing (backwards compatibility dropped):
- * a product dir without a manifest contributes nothing, and a file not listed
- * in a manifest is ignored. `source` paths resolve relative to the product dir.
+ * auto-include and no frontmatter parsing: a file not listed in a manifest is
+ * ignored. `source` paths resolve relative to the product dir.
  */
 export interface DocMeta {
   id: string; // path relative to base, no extension (product/category/slug)
@@ -83,24 +90,9 @@ let indexCache: Index | null = null;
 /**
  * Lazily-rendered page bodies, keyed by doc id. Populated only when a page is
  * actually requested (see `getDoc`), so index discovery never touches page
- * content — it fetches only the first-level subdir manifests.
+ * content — it fetches only `site.yaml` and each product's `docs.yaml`.
  */
 const htmlCache = new Map<string, { at: number; html: string }>();
-
-const PROPFIND_BODY = `<?xml version="1.0"?>
-<d:propfind xmlns:d="DAV:"><d:allprop/></d:propfind>`;
-
-// Namespace-agnostic regexes for parsing a PROPFIND multistatus response.
-// Infomaniak/kDrive (like many servers) rejects `Depth: infinity` (RFC 4918
-// allows it but most implementations refuse it), so we walk the tree one
-// directory at a time with `Depth: 1` and pull `<href>` / `<collection>` out of
-// each `<response>` block ourselves. A WebDAV client library wouldn't remove
-// this constraint (lazy, per-directory discovery is inherent to our manifest
-// model), so a ~30-line regex parse is kept over adding a dependency.
-const RESPONSE_BLOCK = /<(?:[\w]+:)?response[^>]*>([\s\S]*?)<\/(?:[\w]+:)?response>/gi;
-const HREF = /<(?:[\w]+:)?href[^>]*>([^<]*)<\/(?:[\w]+:)?href>/i;
-const IS_COLLECTION =
-  /<(?:[\w]+:)?resourcetype[^>]*>[\s\S]*?<(?:[\w]+:)?collection(?:\s[^>]*)?\/?>/i;
 
 function ensureTrailingSlash(url: string): string {
   return url.endsWith('/') ? url : `${url}/`;
@@ -130,48 +122,7 @@ async function rawFetch(
   return value;
 }
 
-interface PropEntry {
-  rel: string;
-  isCollection: boolean;
-}
-
-/** PROPFIND a directory (Depth 1) and return its immediate children. */
-async function propfind(relDir: string): Promise<PropEntry[]> {
-  const url = relDir ? new URL(`${encodeURI(relDir)}/`, base).href : base;
-  const res = await fetch(url, {
-    method: 'PROPFIND',
-    headers: { Authorization: auth, Depth: '1', 'Content-Type': 'application/xml' },
-    body: PROPFIND_BODY,
-  });
-  if (!res.ok) {
-    throw new Error(`WebDAV PROPFIND ${url} failed: ${res.status} ${res.statusText}`);
-  }
-  const xml = await res.text();
-  const basePath = new URL(base).pathname;
-  const relOf = (pathname: string) =>
-    pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname.replace(/^\/+/, '');
-
-  const out: PropEntry[] = [];
-  let block: RegExpExecArray | null;
-  while ((block = RESPONSE_BLOCK.exec(xml)) !== null) {
-    const inner = block[1];
-    const rel = relFor(inner, url, relOf);
-    if (rel) out.push({ rel, isCollection: IS_COLLECTION.test(inner) });
-  }
-  return out;
-}
-
-/** Parse one PROPFIND `<response>` block into a relative path, or null when it
- * has no `<href>` or it resolves to the directory itself. */
-function relFor(inner: string, url: string, relOf: (p: string) => string): string | null {
-  const href = HREF.exec(inner)?.[1];
-  if (!href) return null;
-  const pathname = new URL(decodeURIComponent(htmlDecode(href)), new URL(url)).pathname;
-  const rel = relOf(pathname).replace(/\/+$/, '').replace(/^\/+/, '');
-  return rel || null;
-}
-
-/** Fetch and parse a product's `docs.yaml` manifest. */
+/** Fetch and parse a product's `docs.yaml` manifest (direct GET). */
 async function loadManifest(relYaml: string): Promise<Manifest> {
   const href = new URL(encodeURI(relYaml), base).href;
   const { text } = await rawFetch(href, false);
@@ -227,44 +178,58 @@ async function loadDocContent(doc: DocMeta): Promise<DocMeta> {
   return { ...doc, updated: doc.updated ?? lastModified, html };
 }
 
+/**
+ * Build the full index from declared manifests only — no PROPFIND, no
+ * enumeration.
+ *
+ *   1. GET <base>/site.yaml (REQUIRED) → `password` + `products` (in order).
+ *   2. For each entry in `products`: GET <base>/<product>/docs.yaml →
+ *      loadManifest → metaFromSpec per listed page.
+ *
+ * A product listed in `site.yaml` whose `docs.yaml` is missing (404) is
+ * skipped with a `console.warn`. If `site.yaml` itself is missing/invalid,
+ * the site serves no products and logs a clear error — there is NO fallback
+ * to listing the drive root.
+ *
+ * Product display order follows `site.yaml.products` order.
+ */
 async function buildIndex(): Promise<Index> {
   const docs: DocMeta[] = [];
   const products = new Map<string, ProductMeta>();
 
-  const top = await propfind('');
-  const productDirs = top
-    .filter((e) => e.isCollection)
-    .map((e) => e.rel)
-    .sort();
-
-  // Optional site-wide config at the drive root: <base>/site.yaml
+  const siteUrl = new URL('site.yaml', base).href;
   let sitePassword: string | undefined;
-  const siteEntry = top.find((e) => !e.isCollection && /^site\.ya?ml$/i.test(e.rel));
-  if (siteEntry) {
-    try {
-      const { text } = await rawFetch(new URL(encodeURI(siteEntry.rel), base).href, false);
-      const parsed = (parseYaml(text ?? '') ?? {}) as Record<string, unknown>;
-      sitePassword = coerceString(parsed.password);
-    } catch (err) {
-      console.warn('[dav] site.yaml:', err);
-    }
+
+  let siteText: string;
+  try {
+    const { text } = await rawFetch(siteUrl, false);
+    siteText = text ?? '';
+  } catch (err) {
+    // site.yaml is required. No products, no fallback to root listing.
+    console.error(
+      `[dav] missing/invalid required site.yaml at ${siteUrl}; serving no products.`,
+      err,
+    );
+    return { at: Date.now(), docs, products, sitePassword: undefined };
   }
 
-  for (const dir of productDirs) {
+  const parsed = (parseYaml(siteText) ?? {}) as Record<string, unknown>;
+  sitePassword = coerceString(parsed.password);
+
+  const productList = Array.isArray(parsed.products) ? parsed.products : [];
+  for (const entry of productList) {
+    if (typeof entry !== 'string' || !entry.trim()) continue;
+    const product = entry.trim();
+
     let manifest: Manifest;
     try {
-      const entries = await propfind(dir);
-      const yamlEntry = entries.find(
-        (e) => !e.isCollection && /^docs\.ya?ml$/i.test(e.rel.split('/').pop() ?? ''),
-      );
-      if (!yamlEntry) continue; // no manifest → contributes nothing
-      manifest = await loadManifest(yamlEntry.rel);
+      manifest = await loadManifest(`${product}/docs.yaml`);
     } catch (err) {
-      console.warn(`[dav] skipping product "${dir}":`, err);
+      console.warn(`[dav] skipping product "${product}" (missing docs.yaml):`, err);
       continue;
     }
 
-    products.set(dir, {
+    products.set(product, {
       description: manifest.description,
       cover: manifest.cover,
       password: manifest.password,
@@ -274,18 +239,17 @@ async function buildIndex(): Promise<Index> {
     for (let i = 0; i < pages.length; i++) {
       const spec = pages[i];
       if (!spec || typeof spec.source !== 'string' || !spec.source) continue;
-      const relPath = `${dir}/${spec.source}`;
+      const relPath = `${product}/${spec.source}`;
       if (!detectKind(relPath)) {
         // Unsupported format — skip at discovery (same as before), content
         // fetch/errors are deferred and surface only if the page is visited.
         console.warn(`[dav] skipping page "${relPath}": unsupported format`);
         continue;
       }
-      docs.push(metaFromSpec(relPath, spec, i, dir));
+      docs.push(metaFromSpec(relPath, spec, i, product));
     }
   }
 
-  docs.sort((a, b) => a.product.localeCompare(b.product) || a.order - b.order);
   return { at: Date.now(), docs, products, sitePassword };
 }
 

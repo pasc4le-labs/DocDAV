@@ -14,15 +14,6 @@ export function escapeHtml(s: string): string {
   );
 }
 
-/** Decode the HTML entities that appear in WebDAV PROPFIND `<href>` values. */
-export function htmlDecode(s: string): string {
-  return s
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"');
-}
-
 /** Turn a slug/file-stem into a display label: "api-reference" → "Api Reference". */
 export function humanize(name: string): string {
   return name

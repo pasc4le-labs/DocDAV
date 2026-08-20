@@ -14,11 +14,24 @@ truth.
 
 ```
 <docsRoot>/
-  <product>/            # top-level folder = a product
-    docs.yaml           # REQUIRED manifest (no manifest → product ignored)
+  site.yaml             # REQUIRED: site password + product index (display order)
+  <product>/            # exactly those listed in site.yaml.products
+    docs.yaml           # REQUIRED manifest (no manifest → product skipped with warn)
     …pages in any supported format
 ```
 
+- **`site.yaml`** is the authoritative, ordered product index: top-level
+  `password` (site/homepage gate) plus a `products` list, in display order.
+  Product presentation order = `site.yaml.products` order (not sorted dir
+  names). It is **required**; if missing/invalid the site serves no products
+  (clear error, no fallback).
+- **Discovery is pure direct GETs** — `GET <base>/site.yaml`, then
+  `GET <base>/<product>/docs.yaml` per listed product, then lazy page GETs.
+  There is **no PROPFIND, no directory enumeration, nothing auto-discovered**.
+  Only the exact filenames `site.yaml` / `docs.yaml` are recognised (strict
+  `.yaml` — no `.yml`, no case-insensitive matching). A product listed without
+  a `docs.yaml` is skipped with a `console.warn`; a product not listed in
+  `site.yaml` is never served.
 - **`docs.yaml`** is the single source of truth: top-level `title`,
   `description`, `cover` (product metadata → homepage card), plus a `pages`
   list. Each page: `title` (default = filename), `source` (relative to product
@@ -49,9 +62,10 @@ Dispatch lives in `src/lib/server/format.ts` (`detectKind`, `renderBody`,
 
 ## Key source files
 
-- `src/lib/server/dav.ts` — discovery (`docs.yaml` per product via PROPFIND),
-  manifest parsing (`yaml`), page loading (text or `arrayBuffer`), TTL cache.
-  Exports `getDocs()`, `getProductsMeta()`, `getDoc(id)`.
+- `src/lib/server/dav.ts` — discovery (`site.yaml` index → per-product
+  `docs.yaml` via direct GETs), manifest parsing (`yaml`), page loading (text
+  or `arrayBuffer`), TTL cache. Exports `getDocs()`, `getProductsMeta()`,
+  `getDoc(id)`.
 - `src/lib/server/format.ts` — multi-format render dispatch.
 - `src/lib/server/md.ts` — marked + doc components (callouts, banners, toggles,
   procedures, mermaid/excalidraw).
@@ -76,6 +90,9 @@ product's `docs.yaml`, site/homepage `password:` in a root `site.yaml`.
 
 ## Status
 
-Plan 01 (manifest + multi-format) implemented and merged. `.doc` not
-supported. Out of scope: site-wide (multi-product) manifest, sidecar
-frontmatter for binaries, client-side editing/write-back.
+Plan 01 (per-product `docs.yaml` manifest + multi-format) and Plan 02
+(required root `site.yaml` product index, pure direct-GET discovery, strict
+`.yaml`) are implemented and merged. **Plan 02 replaced the root-PROPFIND
+enumeration**: products are no longer discovered by listing the drive — they
+come from `site.yaml`, in its list order. `.doc` not supported. Out of scope:
+sidecar frontmatter for binaries, client-side editing/write-back.

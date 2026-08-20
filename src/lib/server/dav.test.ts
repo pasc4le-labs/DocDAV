@@ -13,6 +13,16 @@ vi.mock('$env/dynamic/private', () => ({
 
 const BASE = 'https://webdav.example.test/';
 
+// Root manifest: declares the product index + site gate. `missing-prod` is
+// listed but has NO docs.yaml on the drive; `zeta` HAS a docs.yaml but is
+// NOT listed here.
+const SITE_YAML = `password: site-secret
+products:
+  - atlas
+  - missing-prod
+  - scorekeeper
+`;
+
 const ATLAS_YAML = `title: Atlas Docs
 description: Atlas product description
 cover: https://x/cover.png
@@ -25,21 +35,15 @@ pages:
   - source: getting-started.md
 `;
 
+const SCOREKEEPER_YAML = `pages:
+  - source: scoring.md
+    title: Scoring
+`;
+
+// A drive product that is intentionally absent from site.yaml.products.
 const ZETA_YAML = `pages:
   - source: about.md
 `;
-
-function propfindXml(entries: { href: string; collection: boolean }[]): string {
-  const blocks = entries
-    .map(
-      (e) =>
-        `<d:response><d:href>${e.href}</d:href><d:propstat><d:prop><d:resourcetype>${
-          e.collection ? '<d:collection/>' : ''
-        }</d:resourcetype></d:prop></d:propstat></d:response>`,
-    )
-    .join('');
-  return `<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">${blocks}</d:multistatus>`;
-}
 
 interface Call {
   url: string;
@@ -48,64 +52,52 @@ interface Call {
 
 describe('dav loader', () => {
   let calls: Call[] = [];
+  // When null, the site.yaml GET returns 404 (simulating a missing root manifest).
+  let siteYaml: string | null = SITE_YAML;
 
   beforeEach(() => {
     calls = [];
+    siteYaml = SITE_YAML;
     vi.resetModules();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : String((input as URL).href ?? input);
       const method = (init?.method ?? 'GET').toUpperCase();
       calls.push({ url, method });
 
-      if (method === 'PROPFIND') {
-        if (url === BASE) {
-          return new Response(
-            propfindXml([
-              { href: `${BASE}atlas/`, collection: true },
-              { href: `${BASE}zeta/`, collection: true },
-            ]),
-            { status: 200 },
-          );
-        }
-        if (url.endsWith('/atlas/')) {
-          return new Response(
-            propfindXml([
-              { href: `${BASE}atlas/index.md`, collection: false },
-              { href: `${BASE}atlas/getting-started.md`, collection: false },
-              { href: `${BASE}atlas/docs.yaml`, collection: false },
-            ]),
-            { status: 200 },
-          );
-        }
-        if (url.endsWith('/zeta/')) {
-          return new Response(
-            propfindXml([
-              { href: `${BASE}zeta/about.md`, collection: false },
-              { href: `${BASE}zeta/docs.yaml`, collection: false },
-            ]),
-            { status: 200 },
-          );
-        }
+      if (url === `${BASE}site.yaml`) {
+        return siteYaml === null
+          ? new Response('not found', { status: 404 })
+          : new Response(siteYaml, { status: 200 });
       }
-
-      if (url.endsWith('/atlas/docs.yaml')) {
+      if (url === `${BASE}atlas/docs.yaml`) {
         return new Response(ATLAS_YAML, {
           status: 200,
           headers: { 'last-modified': 'Mon, 01 Jan 2024 00:00:00 GMT' },
         });
       }
-      if (url.endsWith('/zeta/docs.yaml')) {
+      if (url === `${BASE}scorekeeper/docs.yaml`) {
+        return new Response(SCOREKEEPER_YAML, { status: 200 });
+      }
+      if (url === `${BASE}zeta/docs.yaml`) {
+        // Present ONLY so the "never served" assertion can prove it is
+        // never fetched: a product not listed in site.yaml must not be
+        // discovered at all.
         return new Response(ZETA_YAML, { status: 200 });
       }
-      if (url.endsWith('/atlas/getting-started.md')) {
+      if (url === `${BASE}atlas/getting-started.md`) {
         return new Response('# Getting Started\n\nBody here.', {
           status: 200,
           headers: { 'last-modified': 'Tue, 02 Jan 2024 00:00:00 GMT' },
         });
       }
-      if (url.endsWith('/atlas/index.md')) {
+      if (url === `${BASE}atlas/index.md`) {
         return new Response('# Index', { status: 200 });
+      }
+      if (url === `${BASE}scorekeeper/scoring.md`) {
+        return new Response('# Scoring', { status: 200 });
       }
       return new Response('not found', { status: 404 });
     });
@@ -114,17 +106,37 @@ describe('dav loader', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   const contentGets = (path: string) =>
     calls.filter((c) => c.method === 'GET' && c.url.endsWith(path));
 
-  it('builds metadata from manifests via metaFromSpec (title fallback, category default, passthrough)', async () => {
+  it('serves only site.yaml-listed products, in site.yaml order', async () => {
     const dav = await import('./dav');
     const docs = await dav.getDocs();
 
-    // Sorted by product, then manifest order.
-    expect(docs.map((d) => d.id)).toEqual(['atlas/index', 'atlas/getting-started', 'zeta/about']);
+    // atlas first, then scorekeeper — order follows site.yaml.products.
+    // missing-prod is skipped; zeta (never listed) is absent.
+    expect(docs.map((d) => d.id)).toEqual([
+      'atlas/index',
+      'atlas/getting-started',
+      'scorekeeper/scoring',
+    ]);
+    expect(docs.map((d) => d.product)).toEqual(['atlas', 'atlas', 'scorekeeper']);
+
+    const meta = await dav.getProductsMeta();
+    expect([...meta.keys()]).toEqual(['atlas', 'scorekeeper']);
+  });
+
+  it('reads the site password from site.yaml', async () => {
+    const dav = await import('./dav');
+    expect(await dav.getSitePassword()).toBe('site-secret');
+  });
+
+  it('builds metadata from manifests via metaFromSpec (title fallback, category default, passthrough)', async () => {
+    const dav = await import('./dav');
+    const docs = await dav.getDocs();
 
     const index = docs.find((d) => d.id === 'atlas/index')!;
     expect(index.title).toBe('Home');
@@ -145,9 +157,9 @@ describe('dav loader', () => {
     expect(gs.id).toBe('atlas/getting-started');
     expect(gs.path).toBe('atlas/getting-started.md');
 
-    const zeta = docs.find((d) => d.id === 'zeta/about')!;
-    expect(zeta.title).toBe('About');
-    expect(zeta.category).toBe('General');
+    const scoring = docs.find((d) => d.id === 'scorekeeper/scoring')!;
+    expect(scoring.title).toBe('Scoring');
+    expect(scoring.category).toBe('General');
   });
 
   it('index discovery is metadata-only: it never GETs page content', async () => {
@@ -155,7 +167,49 @@ describe('dav loader', () => {
     await dav.getDocs();
     expect(contentGets('getting-started.md')).toHaveLength(0);
     expect(contentGets('index.md')).toHaveLength(0);
-    expect(calls.filter((c) => c.method === 'GET' && c.url.endsWith('.md'))).toHaveLength(0);
+    expect(contentGets('scoring.md')).toHaveLength(0);
+    expect(calls.filter((c) => c.method === 'GET' && c.url.includes('.md'))).toHaveLength(0);
+  });
+
+  it('skips a product listed in site.yaml whose docs.yaml is missing (with warn)', async () => {
+    const dav = await import('./dav');
+    const docs = await dav.getDocs();
+    const meta = await dav.getProductsMeta();
+
+    expect(docs.some((d) => d.product === 'missing-prod')).toBe(false);
+    expect(meta.has('missing-prod')).toBe(false);
+    // The skip was reported, not silent.
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('skipping product "missing-prod"'),
+      expect.anything(),
+    );
+  });
+
+  it('never serves a product NOT listed in site.yaml (not even fetched)', async () => {
+    const dav = await import('./dav');
+    const docs = await dav.getDocs();
+    const meta = await dav.getProductsMeta();
+
+    expect(docs.some((d) => d.product === 'zeta')).toBe(false);
+    expect(meta.has('zeta')).toBe(false);
+    // The drive has zeta/docs.yaml, but since zeta isn't declared it must
+    // never be queried at all.
+    expect(contentGets('zeta/docs.yaml')).toHaveLength(0);
+  });
+
+  it('serves no products and logs an error when site.yaml is missing', async () => {
+    siteYaml = null;
+    const dav = await import('./dav');
+    const docs = await dav.getDocs();
+    const meta = await dav.getProductsMeta();
+
+    expect(docs).toEqual([]);
+    expect(meta.size).toBe(0);
+    expect(await dav.getSitePassword()).toBeUndefined();
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('site.yaml'),
+      expect.anything(),
+    );
   });
 
   it('getDoc lazily fetches AND renders only the requested page', async () => {
@@ -167,7 +221,7 @@ describe('dav loader', () => {
     // Only this one source file was pulled from WebDAV.
     expect(contentGets('getting-started.md')).toHaveLength(1);
     expect(contentGets('index.md')).toHaveLength(0);
-    expect(contentGets('about.md')).toHaveLength(0);
+    expect(contentGets('scoring.md')).toHaveLength(0);
   });
 
   it('loadDocContent caches rendered html: a 2nd call does NOT refetch within TTL', async () => {

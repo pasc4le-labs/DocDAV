@@ -1,8 +1,9 @@
 # Technical Overview
 
 `DocDAV` is a SvelteKit app that turns a WebDAV share into a live,
-multi-product documentation site. Every top-level folder on the drive is a
-product, declared by a `docs.yaml` manifest; its pages are rendered
+multi-product documentation site. A required root `site.yaml` is the product
+index — it lists the products and a site password. Each product is declared by
+a `docs.yaml` manifest; its pages are rendered
 server-side on request from multiple formats (`md/txt/html/adoc/csv/docx/xlsx`)
 and cached in-memory for a short TTL, so content changes appear without a
 rebuild.
@@ -35,14 +36,21 @@ src/
 
 ```
 <docsRoot>/
-  <product>/          ← every top-level folder is a product
-    docs.yaml         ← REQUIRED manifest (no manifest → product is ignored)
+  site.yaml           ← REQUIRED: site password + product index (display order)
+  <product>/          ← exactly those listed in site.yaml.products
+    docs.yaml         ← REQUIRED per-product manifest (missing → product skipped with warn)
     <page>.md
     <subdir>/<page>.docx   ← pages can nest and use any supported format
 ```
 
-The manifest is the single source of truth for metadata, categories and
-ordering. Sidebar grouping and order come from the `pages` list:
+Discovery is a few direct GETs against known paths — `GET <base>/site.yaml`,
+then `GET <base>/<product>/docs.yaml` per listed product, then lazy page GETs.
+There is **no PROPFIND, no directory enumeration and nothing auto-discovered**.
+Only the exact filenames `site.yaml` and `docs.yaml` are recognised (strict
+`.yaml` — no `.yml`, no case-insensitive matching); a product not listed in
+`site.yaml` is never served. The product manifest (`docs.yaml`) is the single
+source of truth for metadata, categories and ordering. Sidebar grouping and
+order come from the `pages` list:
 
 ```yaml
 title: Atlas
@@ -137,8 +145,10 @@ drive, so there is no cloud dependency.
 ## Authentication
 
 - Passwords live in the content: **per-product** via `password:` in that
-  product's `docs.yaml`; **site-wide** via `password:` in a root `site.yaml`.
-  Products without a password, and a drive without `site.yaml`, are public.
+  product's `docs.yaml`; **site-wide** via `password:` in the root `site.yaml`
+  (the same file also lists the products). A product without a password is
+  public; a `site.yaml` without a `password:` keeps the landing page public
+  too.
 - A locked product is gated **before** rendering; the password is accepted via
   query param (`?key=…` / `?p=…`), an `X-Doc-Key` header, or a styled unlock
   form. On success a session cookie is set and you are redirected to a clean URL.
@@ -179,10 +189,12 @@ Core dependencies: `@sveltejs/kit`, `svelte` 5, `marked`, `yaml`, `mammoth`,
 
 ## Notes & trade-offs
 
-- The loader reads each product's `docs.yaml` (PROPFIND per product directory),
-  then fetches exactly the pages listed in the manifest; the whole index is
-  cached for `WEBDAV_TTL_MS`. It does **not** walk the whole tree or
-  auto-include unlisted files.
+- Discovery is pure direct GETs: `GET <base>/site.yaml` (product index), then
+  `GET <base>/<product>/docs.yaml` per listed product, then exactly the pages
+  listed in each manifest — cached for `WEBDAV_TTL_MS`. It performs **no
+  PROPFIND, no directory enumeration, and never auto-includes unlisted files.**
+  A product listed in `site.yaml` without a `docs.yaml` is skipped with a warn;
+  a product not listed is never served.
 - `updated` / manifest YAML `Date`s are coerced to ISO strings.
 - Raw `.html` pages are sanitized (scripts/stripped attributes removed) before
   rendering.

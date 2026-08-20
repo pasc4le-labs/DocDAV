@@ -6,11 +6,13 @@ files over WebDAV and renders them as clean, searchable, per-product docs.
 Edit a file, refresh the page, and it is live. No build step, no pipeline, no
 extra parts.
 
-A product is a folder on the drive, described by a `docs.yaml` manifest that
-defines its pages, their categories and their order. Pages render from
-Markdown, plain text, raw HTML, AsciiDoc, CSV, .docx and .xlsx, each with
-optional per-product password protection. A folder without a manifest
-contributes nothing, and files not listed in one are not served.
+The drive is declared at its root by a **required `site.yaml`** that lists the
+products (in display order) and a site password. Each product is a folder,
+described by a `docs.yaml` manifest that defines its pages, their categories
+and their order. Pages render from Markdown, plain text, raw HTML, AsciiDoc,
+CSV, .docx and .xlsx, each with optional per-product password protection. Only
+the products listed in `site.yaml` are served, and only files listed in a
+product's `docs.yaml` are served — nothing is auto-discovered.
 
 Because it speaks standard WebDAV, it works out of the box with most cloud
 storage and file servers:

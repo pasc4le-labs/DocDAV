@@ -18,16 +18,16 @@ function doc(
 }
 
 describe('listProducts', () => {
-  it('groups docs by product and sorts products by name', () => {
+  it('groups docs by product, preserving first-encounter (site.yaml) order', () => {
     const products = listProducts([
       doc('zebra/a', { product: 'zebra' }),
       doc('alpha/b', { product: 'alpha' }),
       doc('alpha/c', { product: 'alpha' }),
       doc('mid/x', { product: 'mid' }),
     ]);
-    expect(products.map((p) => p.name)).toEqual(['alpha', 'mid', 'zebra']);
-    expect(products[0].count).toBe(2);
-    expect(products[1].count).toBe(1);
+    expect(products.map((p) => p.name)).toEqual(['zebra', 'alpha', 'mid']);
+    expect(products[0].count).toBe(1);
+    expect(products[1].count).toBe(2);
     expect(products[2].count).toBe(1);
   });
 

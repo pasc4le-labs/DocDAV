@@ -2,12 +2,34 @@
 
 A walkthrough of authoring documentation and running the site.
 
+## Declaring products (`site.yaml`)
+
+A **required `site.yaml`** at the drive root is the authoritative product
+index: it holds the site password and lists the products to serve, in display
+order. Nothing is auto-discovered — the site reads `site.yaml`, then fetches
+each listed product's `docs.yaml` directly (no PROPFIND, no directory
+enumeration). Only the filenames `site.yaml` and `docs.yaml` are recognised
+(strict `.yaml` — no `.yml`, no case-insensitive matching).
+
+```yaml
+# <docsRoot>/site.yaml
+password: site-secret        # optional site / homepage password
+products:                    # in display order, top to bottom
+  - atlas
+  - scorekeeper
+```
+
+- **Adding a product** is a content change, not a deploy change: add its name
+  to `site.yaml` `products` (and give it a `docs.yaml`) right in the drive.
+- A product listed in `site.yaml` without a `docs.yaml` is **skipped with a
+  warning**, never breaking the rest of the site.
+- A product *not* listed in `site.yaml` is never served.
+
 ## Authoring a product
 
-Each top-level folder on the drive is a **product**. A product is defined by a
-`docs.yaml` manifest at its root, the single source of truth for metadata,
-sidebar categories and page ordering. A product folder without a manifest is
-ignored.
+Each product is a folder on the drive, named in `site.yaml` and defined by a
+`docs.yaml` manifest at its root — the single source of truth for metadata,
+sidebar categories and page ordering.
 
 ```
 <docsRoot>/atlas/
@@ -103,15 +125,19 @@ Passwords live in the content, not the environment.
   pages: …
   ```
 
-- **Site / homepage:** add a `site.yaml` at the drive root:
+- **Site / homepage:** the root `site.yaml`:
 
   ```yaml
   # <docsRoot>/site.yaml
   password: site-secret   # → the landing page / requires this key
+  products:               # product index (display order)
+    - atlas
+    - scorekeeper
   ```
 
-A product without `password:` (and a drive without `site.yaml`) is public.
-Locked products are gated **before** rendering; the password works via
+A product without `password:` is public. A `site.yaml` without `password:`
+keeps the landing page public too. Locked products are gated **before**
+rendering; the password works via
 `?key=…`, an `X-Doc-Key` header, or the unlock form. Passwords are re-read with
 the same TTL cache as the rest of the content.
 
