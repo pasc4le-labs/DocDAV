@@ -72,6 +72,7 @@ jobs:
             -e PORT=${{ env.PORT }} \
             "$IMG")
           trap 'docker rm -f "$CID" >/dev/null 2>&1 || true' EXIT
+          CJ=/tmp/docdav_cookie_jar
           ok=""
           for i in $(seq 1 30); do
             # scorekeeper is a public product (no password) → good readiness probe.
@@ -80,8 +81,11 @@ jobs:
           done
           [ -n "$ok" ] || { echo "service did not come up"; exit 1; }
           # Homepage is gated by the site password (sample/site.yaml: site-secret).
+          # ?key=... 302-redirects to the clean path and sets an auth cookie; curl
+          # needs a cookie jar to carry it across the redirect.
           [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${{ env.PORT }}/)" = "401" ]
-          curl -sf "http://localhost:${{ env.PORT }}/?key=site-secret" | grep -qi "Documentation"
-          curl -sf -o /dev/null -w "landing: %{http_code}\n" "http://localhost:${{ env.PORT }}/?key=site-secret"
-          curl -sf -o /dev/null -w "product: %{http_code}\n" \
+          curl -sfL -c "$CJ" -b "$CJ" "http://localhost:${{ env.PORT }}/?key=site-secret" | grep -qi "Documentation"
+          curl -sfL -c "$CJ" -b "$CJ" -o /dev/null -w "landing: %{http_code}\n" "http://localhost:${{ env.PORT }}/?key=site-secret"
+          curl -sfL -c "$CJ" -b "$CJ" -o /dev/null -w "product: %{http_code}\n" \
             "http://localhost:${{ env.PORT }}/atlas?key=atlaspass"
+          rm -f "$CJ"
