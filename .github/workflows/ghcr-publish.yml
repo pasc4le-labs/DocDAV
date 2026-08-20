@@ -69,17 +69,19 @@ jobs:
             -e WEBDAV_URL=http://127.0.0.1:${{ env.WEBDAV_PORT }}/ \
             -e WEBDAV_USER=demo \
             -e WEBDAV_PASS=secret \
-            -e DOC_PASSWORDS='{"atlas":"atlaspass"}' \
             -e PORT=${{ env.PORT }} \
             "$IMG")
           trap 'docker rm -f "$CID" >/dev/null 2>&1 || true' EXIT
           ok=""
           for i in $(seq 1 30); do
-            if curl -sf -o /dev/null http://localhost:${{ env.PORT }}/; then ok=1; break; fi
+            # scorekeeper is a public product (no password) → good readiness probe.
+            if curl -sf -o /dev/null http://localhost:${{ env.PORT }}/scorekeeper; then ok=1; break; fi
             sleep 1
           done
           [ -n "$ok" ] || { echo "service did not come up"; exit 1; }
-          curl -sf http://localhost:${{ env.PORT }}/ | grep -qi "Documentation"
-          curl -sf -o /dev/null -w "landing: %{http_code}\n" http://localhost:${{ env.PORT }}/
+          # Homepage is gated by the site password (sample/site.yaml: site-secret).
+          [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${{ env.PORT }}/)" = "401" ]
+          curl -sf "http://localhost:${{ env.PORT }}/?key=site-secret" | grep -qi "Documentation"
+          curl -sf -o /dev/null -w "landing: %{http_code}\n" "http://localhost:${{ env.PORT }}/?key=site-secret"
           curl -sf -o /dev/null -w "product: %{http_code}\n" \
             "http://localhost:${{ env.PORT }}/atlas?key=atlaspass"
