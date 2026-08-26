@@ -18,7 +18,7 @@ const sidebar = $derived(data.sidebar as SidebarCategory[]);
             href="/{item.id}"
             class:active={item.id === activeId}
             onclick={closeSidebar}
-          >{item.title}</a>
+          ><span class="link-text">{item.title}</span></a>
         {/each}
       </div>
     {/each}
