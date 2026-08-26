@@ -173,10 +173,11 @@ onMount(() => {
 {#if doc.description}
   <p class="doc-meta">{doc.description}</p>
 {/if}
-{#if doc.updated}
-  <p class="doc-meta">Updated: {doc.updated}</p>
-{/if}
 
 <article>
   {@html doc.html ?? ''}
 </article>
+
+{#if doc.updated}
+  <p class="doc-meta">Updated: {doc.updated}</p>
+{/if}
