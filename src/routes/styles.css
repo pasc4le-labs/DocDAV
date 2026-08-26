@@ -224,8 +224,12 @@ a {
   display: none;
 }
 
-/* ---------- Sidebar (full height of content) ---------- */
+/* ---------- Sidebar (sticky column, independently scrollable) ---------- */
 .sidebar {
+  position: sticky;
+  top: 50px;
+  max-height: calc(100vh - 50px);
+  align-self: start;
   overflow-y: auto;
   padding: 0.5rem 0.5rem 2rem;
   border-right: 1px solid var(--border);
