@@ -196,6 +196,11 @@ a {
 .page-menu-pop button.copied .pm-label {
   color: #4ade80;
 }
+.page-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 4px;
+}
 
 /* Display font for headings + brand */
 .content h1,

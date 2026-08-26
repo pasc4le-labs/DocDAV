@@ -3,7 +3,23 @@ import { onMount } from 'svelte';
 
 // Page actions dropdown, rendered next to the current doc heading:
 // copies the current page's text to the clipboard, or opens a new chat
-// with that text in Claude / ChatGPT.
+// with that text in one of several AI assistants.
+interface Provider {
+  label: string;
+  icon: string;
+  /** Base URL that prefills a new-chat prompt. `pageText()` is appended. */
+  url: string;
+}
+const providers: Provider[] = [
+  { label: 'Claude', icon: 'ri-sparkling-line', url: 'https://claude.ai/new?q=' },
+  { label: 'ChatGPT', icon: 'ri-openai-fill', url: 'https://chatgpt.com?prompt=' },
+  { label: 'Gemini', icon: 'ri-google-fill', url: 'https://gemini.google.com/app?q=' },
+  { label: 'Perplexity', icon: 'ri-earth-line', url: 'https://www.perplexity.ai/search?q=' },
+  // Z.ai (GLM) doesn't document a prompt-prefill param; falls back to an
+  // empty new chat that just visits chat.z.ai.
+  { label: 'Z.ai', icon: 'ri-robot-line', url: 'https://chat.z.ai/?q=' },
+];
+
 let open = $state(false);
 let copied = $state(false);
 
@@ -65,15 +81,13 @@ onMount(() => {
       <span class="pm-label">{copied ? 'Copied!' : 'Copy page'}</span>
       <span class="pm-sub">Whole page as plain text</span>
     </button>
-    <button type="button" onclick={() => ask('https://claude.ai/new?q=')}>
-      <i class="ri-sparkling-line"></i>
-      <span class="pm-label">Ask Claude</span>
-      <span class="pm-sub">New chat with this page</span>
-    </button>
-    <button type="button" onclick={() => ask('https://chatgpt.com?prompt=')}>
-      <i class="ri-openai-fill"></i>
-      <span class="pm-label">Ask ChatGPT</span>
-      <span class="pm-sub">New chat with this page</span>
-    </button>
+    <div class="page-menu-divider" role="separator"></div>
+    {#each providers as p (p.label)}
+      <button type="button" onclick={() => ask(p.url)}>
+        <i class={p.icon}></i>
+        <span class="pm-label">Ask {p.label}</span>
+        <span class="pm-sub">New chat with this page</span>
+      </button>
+    {/each}
   </div>
 </div>
