@@ -3,6 +3,7 @@ import { page } from '$app/state';
 import 'highlight.js/styles/github-dark.css';
 import 'remixicon/fonts/remixicon.css';
 import './styles.css';
+import PageMenu from '$lib/PageMenu.svelte';
 import { toggleSidebar } from '$lib/ui.svelte';
 
 let { data, children } = $props();
@@ -42,6 +43,7 @@ const productName = $derived(
       {/if}
       <span class="brand-name">{onProduct ? productName : data.brand.name}</span>
     </a>
+    <PageMenu />
   </header>
 
   <div class="app-main">
