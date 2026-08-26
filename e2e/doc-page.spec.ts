@@ -53,7 +53,6 @@ test.describe('page actions menu', () => {
       ChatGPT: 'https://chatgpt.com?prompt=',
       Gemini: 'https://gemini.google.com/app?q=',
       Perplexity: ['https://www.perplexity.ai/search?q=', 'https://www.perplexity.ai/search/new?q='],
-      'Z.ai': 'https://chat.z.ai/?q=',
     };
 
     await page.locator('.doc-header .page-menu-btn').click();
@@ -72,6 +71,22 @@ test.describe('page actions menu', () => {
       // Close the menu before the next provider.
       await page.locator('body').click({ position: { x: 5, y: 5 } });
     }
+  });
+});
+
+test.describe('AI link override (AI_OVERRIDES env)', () => {
+  test('a configured provider renders as a fixed-link anchor', async ({ page }) => {
+    // Second app instance (port 4324) runs with AI_OVERRIDES set.
+    await page.goto('http://127.0.0.1:4324/atlas/getting-started?key=atlaspass');
+    await expect(page).not.toHaveTitle(/Protected/);
+    await page.locator('.doc-header .page-menu-btn').click();
+
+    // Gemini is overridden -> a plain link to the fixed href.
+    const gemini = page.locator('.page-menu-pop a.pm-item').filter({ hasText: 'Gemini' });
+    await expect(gemini).toHaveAttribute('href', 'https://gemini.example.test/custom');
+
+    // Un-overridden providers are still deep-link buttons.
+    await expect(page.locator('.page-menu-pop button').filter({ hasText: 'Claude' })).toBeVisible();
   });
 });
 

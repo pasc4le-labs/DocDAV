@@ -1,27 +1,42 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import { page } from '$app/state';
 
 // Page actions dropdown, rendered next to the current doc heading:
 // copies the current page's text to the clipboard, or opens a new chat
 // with that text in one of several AI assistants.
 interface Provider {
+  slug: string;
   label: string;
   icon: string;
   /** Base URL that prefills a new-chat prompt. `pageText()` is appended. */
   url: string;
 }
 const providers: Provider[] = [
-  { label: 'Claude', icon: 'ri-sparkling-line', url: 'https://claude.ai/new?q=' },
-  { label: 'ChatGPT', icon: 'ri-openai-fill', url: 'https://chatgpt.com?prompt=' },
-  { label: 'Gemini', icon: 'ri-google-fill', url: 'https://gemini.google.com/app?q=' },
-  { label: 'Perplexity', icon: 'ri-earth-line', url: 'https://www.perplexity.ai/search?q=' },
-  // Z.ai (GLM) doesn't document a prompt-prefill param; falls back to an
-  // empty new chat that just visits chat.z.ai.
-  { label: 'Z.ai', icon: 'ri-robot-line', url: 'https://chat.z.ai/?q=' },
+  { slug: 'claude', label: 'Claude', icon: 'ri-sparkling-line', url: 'https://claude.ai/new?q=' },
+  { slug: 'chatgpt', label: 'ChatGPT', icon: 'ri-openai-fill', url: 'https://chatgpt.com?prompt=' },
+  {
+    slug: 'gemini',
+    label: 'Gemini',
+    icon: 'ri-google-fill',
+    url: 'https://gemini.google.com/app?q=',
+  },
+  {
+    slug: 'perplexity',
+    label: 'Perplexity',
+    icon: 'ri-earth-line',
+    url: 'https://www.perplexity.ai/search?q=',
+  },
 ];
 
 let open = $state(false);
 let copied = $state(false);
+
+// Optional per-provider fixed href overrides (from the AI_OVERRIDES env, keyed
+// by provider slug). When set, the item becomes a plain link to that URL.
+const aiOverrides = $derived(
+  (page.data as { aiOverrides?: Record<string, string> }).aiOverrides ?? {},
+);
 
 // The CURRENT page as plain text — the doc's own <h1> plus its rendered
 // body. Scoped to .content so the sidebar/index/nav never leaks in.
@@ -82,12 +97,27 @@ onMount(() => {
       <span class="pm-sub">Whole page as plain text</span>
     </button>
     <div class="page-menu-divider" role="separator"></div>
-    {#each providers as p (p.label)}
-      <button type="button" onclick={() => ask(p.url)}>
-        <i class={p.icon}></i>
-        <span class="pm-label">Ask {p.label}</span>
-        <span class="pm-sub">New chat with this page</span>
-      </button>
+    {#each providers as p (p.slug)}
+      {@const overrideHref = aiOverrides[p.slug]}
+      {#if overrideHref}
+        <a
+          class="pm-item"
+          href={overrideHref}
+          target="_blank"
+          rel="noopener"
+          onclick={() => (open = false)}
+        >
+          <i class={p.icon}></i>
+          <span class="pm-label">Ask {p.label}</span>
+          <span class="pm-sub">Configured link</span>
+        </a>
+      {:else}
+        <button type="button" onclick={() => ask(p.url)}>
+          <i class={p.icon}></i>
+          <span class="pm-label">Ask {p.label}</span>
+          <span class="pm-sub">New chat with this page</span>
+        </button>
+      {/if}
     {/each}
   </div>
 </div>
