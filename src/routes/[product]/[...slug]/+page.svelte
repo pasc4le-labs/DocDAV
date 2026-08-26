@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import PageMenu from '$lib/PageMenu.svelte';
 import type { DocMeta } from '$lib/server/dav';
 
 let { data } = $props();
@@ -169,7 +170,10 @@ onMount(() => {
 });
 </script>
 
-<h1>{doc.title}</h1>
+<div class="doc-header">
+  <h1>{doc.title}</h1>
+  <PageMenu />
+</div>
 {#if doc.description}
   <p class="doc-meta">{doc.description}</p>
 {/if}

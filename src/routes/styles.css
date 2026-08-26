@@ -108,10 +108,21 @@ a {
   background: var(--accent);
 }
 
-/* Page actions menu (topbar right): Copy page / Ask Claude / Ask ChatGPT */
+/* Page actions menu (next to the doc heading): Copy page / Ask Claude / Ask ChatGPT */
+.doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+}
+.doc-header h1 {
+  margin: 0;
+}
 .page-menu {
   position: relative;
-  margin-left: auto;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
 }
 .page-menu-btn {
   display: inline-flex;
