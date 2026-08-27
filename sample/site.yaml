@@ -4,3 +4,11 @@ password: "site-secret"   # site / homepage gate (existing behaviour)
 products:
   - atlas                 # first-level subdirs, in display order
   - scorekeeper
+
+# Optional "Ask <provider>" menu defaults, keyed by provider slug. A boolean
+# enables (true) / disables (false) that provider; a string sets a fixed link
+# for it (instead of the prefill deep-link). Missing keys default to enabled.
+# Each product's docs.yaml `copy:` overrides this per key.
+copy:
+  claude: false                                   # disabled site-wide
+  gemini: https://gemini.example.test/site-custom # fixed link site-wide

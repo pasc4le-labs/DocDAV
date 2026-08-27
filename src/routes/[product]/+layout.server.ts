@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { getDocs } from '$lib/server/dav';
+import { getDocs, getProductsMeta } from '$lib/server/dav';
 import { sidebarFor } from '$lib/server/nav';
 import { humanize } from '$lib/server/text';
 
@@ -10,5 +10,9 @@ export async function load({ params }) {
   if (sidebar.length === 0) {
     throw error(404, 'Unknown product');
   }
-  return { product, label: humanize(product), sidebar };
+  // Effective "Ask <provider>" copy config for this product (site default
+  // from site.yaml, overridden per-key by this product's docs.yaml).
+  const meta = await getProductsMeta();
+  const copy = meta.get(product)?.copy ?? {};
+  return { product, label: humanize(product), sidebar, copy };
 }

@@ -17,6 +17,10 @@ const BASE = 'https://webdav.example.test/';
 // listed but has NO docs.yaml on the drive; `zeta` HAS a docs.yaml but is
 // NOT listed here.
 const SITE_YAML = `password: site-secret
+copy:
+  claude: false
+  gemini: https://site-custom.test
+  junk: 123
 products:
   - atlas
   - missing-prod
@@ -26,6 +30,9 @@ products:
 const ATLAS_YAML = `title: Atlas Docs
 description: Atlas product description
 cover: https://x/cover.png
+copy:
+  claude: true
+  gemini: https://atlas-custom.test
 pages:
   - source: index.md
     title: Home
@@ -35,6 +42,7 @@ pages:
   - source: getting-started.md
 `;
 
+// NOTE: no `copy:` — scorekeeper inherits the site.yaml default.
 const SCOREKEEPER_YAML = `pages:
   - source: scoring.md
     title: Scoring
@@ -132,6 +140,24 @@ describe('dav loader', () => {
   it('reads the site password from site.yaml', async () => {
     const dav = await import('./dav');
     expect(await dav.getSitePassword()).toBe('site-secret');
+  });
+
+  it('resolves per-product copy config, docs.yaml overriding site.yaml', async () => {
+    const dav = await import('./dav');
+    const meta = await dav.getProductsMeta();
+
+    // atlas overrides site defaults per key (claude re-enabled, gemini href).
+    expect(meta.get('atlas')!.copy).toEqual({
+      claude: true,
+      gemini: 'https://atlas-custom.test',
+    });
+
+    // scorekeeper has no docs copy → inherits site.yaml; `junk: 123` (a
+    // non-boolean, non-string value) is dropped.
+    expect(meta.get('scorekeeper')!.copy).toEqual({
+      claude: false,
+      gemini: 'https://site-custom.test',
+    });
   });
 
   it('builds metadata from manifests via metaFromSpec (title fallback, category default, passthrough)', async () => {

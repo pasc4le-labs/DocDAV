@@ -47,7 +47,21 @@ export interface ProductMeta {
   cover?: string;
   /** Optional per-product access password. Present → product is gated. */
   password?: string;
+  /** Effective "Ask <provider>" copy-menu config (site default overridden by docs.yaml). */
+  copy?: CopyConfig;
 }
+
+/**
+ * Per-provider control for the page "Ask <provider>" copy menu, keyed by
+ * provider slug (`copy.claude`, `copy.chatgpt`, …). All providers are ON by
+ * default. For a given slug:
+ *  - absent / `true`  → enabled as a deep-link button (default prefill)
+ *  - `false`          → disabled (hidden from the menu)
+ *  - string (an href) → enabled as a plain link to that URL
+ * The site-wide default lives in `site.yaml`'s optional `copy:` map; a
+ * product's `docs.yaml` `copy:` overrides it per key (docs precedence).
+ */
+export type CopyConfig = Record<string, boolean | string>;
 
 interface PageSpec {
   title?: string;
@@ -62,6 +76,8 @@ interface Manifest {
   description?: string;
   cover?: string;
   password?: string;
+  /** Raw `copy:` map from this manifest. */
+  copy?: CopyConfig;
   pages?: PageSpec[];
 }
 
@@ -84,6 +100,8 @@ interface Index {
   products: Map<string, ProductMeta>;
   /** Site-wide (homepage) password from <base>/site.yaml. */
   sitePassword?: string;
+  /** Site-wide default `copy:` map from <base>/site.yaml. */
+  siteCopy: CopyConfig;
 }
 let indexCache: Index | null = null;
 
@@ -102,6 +120,18 @@ function coerceString(v: unknown): string | undefined {
   if (typeof v === 'string') return v;
   if (v instanceof Date) return v.toISOString();
   return undefined;
+}
+
+/** Normalize a raw YAML `copy:` value: keep only boolean and non-empty string
+ * entries (any other value is dropped). Returns undefined when empty. */
+function coerceCopy(v: unknown): CopyConfig | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: CopyConfig = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === 'boolean') out[k] = val;
+    else if (typeof val === 'string' && val) out[k] = val;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 async function rawFetch(
@@ -132,6 +162,7 @@ async function loadManifest(relYaml: string): Promise<Manifest> {
     description: coerceString(parsed.description),
     cover: coerceString(parsed.cover),
     password: coerceString(parsed.password),
+    copy: coerceCopy(parsed.copy),
     pages: Array.isArray(parsed.pages) ? (parsed.pages as PageSpec[]) : [],
   };
 }
@@ -210,11 +241,13 @@ async function buildIndex(): Promise<Index> {
       `[dav] missing/invalid required site.yaml at ${siteUrl}; serving no products.`,
       err,
     );
-    return { at: Date.now(), docs, products, sitePassword: undefined };
+    return { at: Date.now(), docs, products, sitePassword: undefined, siteCopy: {} };
   }
 
   const parsed = (parseYaml(siteText) ?? {}) as Record<string, unknown>;
   sitePassword = coerceString(parsed.password);
+  // Site-wide default "Ask <provider>" copy config, overridden per product.
+  const siteCopy = coerceCopy(parsed.copy) ?? {};
 
   const productList = Array.isArray(parsed.products) ? parsed.products : [];
   for (const entry of productList) {
@@ -233,6 +266,8 @@ async function buildIndex(): Promise<Index> {
       description: manifest.description,
       cover: manifest.cover,
       password: manifest.password,
+      // docs.yaml `copy:` takes precedence over the site-wide default.
+      copy: { ...siteCopy, ...(manifest.copy ?? {}) },
     });
 
     const pages = manifest.pages ?? [];
@@ -250,7 +285,7 @@ async function buildIndex(): Promise<Index> {
     }
   }
 
-  return { at: Date.now(), docs, products, sitePassword };
+  return { at: Date.now(), docs, products, sitePassword, siteCopy };
 }
 
 async function getIndex(): Promise<Index> {

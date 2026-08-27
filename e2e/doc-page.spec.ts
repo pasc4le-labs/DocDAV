@@ -47,11 +47,13 @@ test.describe('page actions menu', () => {
     expect(clip).toContain('Welcome to Atlas');
   });
 
-  test('shows Copy + all Ask providers with working prefilled URLs', async ({ page }) => {
+  test('shows Copy + Ask providers with working prefilled URLs', async ({ page }) => {
+    // On atlas, docs.yaml re-enables Claude (disabled site-wide) and turns
+    // Gemini into a fixed link — so Claude/ChatGPT/Perplexity are deep-link
+    // buttons with prefilled URLs.
     const expected = {
       Claude: 'https://claude.ai/new?q=',
       ChatGPT: 'https://chatgpt.com?prompt=',
-      Gemini: 'https://gemini.google.com/app?q=',
       Perplexity: ['https://www.perplexity.ai/search?q=', 'https://www.perplexity.ai/search/new?q='],
     };
 
@@ -74,19 +76,34 @@ test.describe('page actions menu', () => {
   });
 });
 
-test.describe('AI link override (AI_OVERRIDES env)', () => {
-  test('a configured provider renders as a fixed-link anchor', async ({ page }) => {
-    // Second app instance (port 4324) runs with AI_OVERRIDES set.
-    await page.goto('http://127.0.0.1:4324/atlas/getting-started?key=atlaspass');
-    await expect(page).not.toHaveTitle(/Protected/);
+// The "Ask <provider>" menu is driven by a `copy:` map in content, not env:
+// site.yaml provides the site-wide default, and a product's docs.yaml overrides it.
+test.describe('copy config (site.yaml + docs.yaml)', () => {
+  test('site default: disabled provider hidden, fixed link renders as an anchor', async ({ page }) => {
+    // scorekeeper has no docs.yaml `copy`, so it inherits site.yaml: Claude is
+    // disabled, Gemini points at the site-wide link, the rest stay enabled.
+    await page.goto('/scorekeeper/deployment');
     await page.locator('.doc-header .page-menu-btn').click();
 
-    // Gemini is overridden -> a plain link to the fixed href.
-    const gemini = page.locator('.page-menu-pop a.pm-item').filter({ hasText: 'Gemini' });
-    await expect(gemini).toHaveAttribute('href', 'https://gemini.example.test/custom');
+    await expect(page.locator('.page-menu-pop a.pm-item').filter({ hasText: 'Gemini' })).toHaveAttribute(
+      'href',
+      'https://gemini.example.test/site-custom',
+    );
+    await expect(page.locator('.page-menu-pop button').filter({ hasText: 'Claude' })).toHaveCount(0);
+    await expect(page.locator('.page-menu-pop button').filter({ hasText: 'ChatGPT' })).toBeVisible();
+    await expect(page.locator('.page-menu-pop button').filter({ hasText: 'Perplexity' })).toBeVisible();
+  });
 
-    // Un-overridden providers are still deep-link buttons.
+  test('docs.yaml copy overrides site.yaml per product', async ({ page }) => {
+    // atlas re-enables Claude (disabled site-wide) and overrides Gemini's href.
+    await page.goto('/atlas/getting-started?key=atlaspass');
+    await page.locator('.doc-header .page-menu-btn').click();
+
     await expect(page.locator('.page-menu-pop button').filter({ hasText: 'Claude' })).toBeVisible();
+    await expect(page.locator('.page-menu-pop a.pm-item').filter({ hasText: 'Gemini' })).toHaveAttribute(
+      'href',
+      'https://gemini.example.test/atlas-custom',
+    );
   });
 });
 

@@ -32,11 +32,11 @@ const providers: Provider[] = [
 let open = $state(false);
 let copied = $state(false);
 
-// Optional per-provider fixed href overrides (from the AI_OVERRIDES env, keyed
-// by provider slug). When set, the item becomes a plain link to that URL.
-const aiOverrides = $derived(
-  (page.data as { aiOverrides?: Record<string, string> }).aiOverrides ?? {},
-);
+// Effective "Ask <provider>" copy config for the current product, from the
+// layout server data (site.yaml default overridden by docs.yaml). For a slug:
+// absent/true = enabled deep-link button; string = fixed-link anchor; false =
+// hidden.
+const copy = $derived((page.data as { copy?: Record<string, boolean | string> }).copy ?? {});
 
 // The CURRENT page as plain text — the doc's own <h1> plus its rendered
 // body. Scoped to .content so the sidebar/index/nav never leaks in.
@@ -98,11 +98,13 @@ onMount(() => {
     </button>
     <div class="page-menu-divider" role="separator"></div>
     {#each providers as p (p.slug)}
-      {@const overrideHref = aiOverrides[p.slug]}
-      {#if overrideHref}
+      {@const setting = copy[p.slug]}
+      {#if setting === false}
+        <!-- Disabled for this site/product: not rendered. -->
+      {:else if typeof setting === 'string' && setting}
         <a
           class="pm-item"
-          href={overrideHref}
+          href={setting}
           target="_blank"
           rel="noopener"
           onclick={() => (open = false)}

@@ -70,6 +70,7 @@ pages:
 | ------------ | ------------------------------------------------------------------- |
 | (top) `title` / `description` / `cover` | product metadata → homepage card          |
 | (top) `password` | optional per-product access password (product becomes gated)     |
+| (top) `copy` | "Ask <provider>" menu config — per-provider `true`/`false`/href; overrides `site.yaml` per key |
 | `pages[].title` | page title + sidebar label (default: filename)                    |
 | `pages[].source` | file path relative to the product folder                          |
 | `pages[].category` | sidebar group (default `General`, first-appearance order)        |
@@ -79,6 +80,19 @@ pages:
 
 Only pages listed in the manifest are served (no frontmatter, no
 auto-include). `.doc` is not supported.
+
+### Ask menu (`copy` config)
+
+Each page's Copy / Ask menu can send the page to an AI assistant. Its contents
+are driven by a `copy:` map in the content: a **site-wide default** in
+`site.yaml`, overridable per product by the product's `docs.yaml` (`docs.yaml`
+wins per key). For each provider slug (`copy.claude`, `copy.chatgpt`, …):
+
+- absent / `true` → enabled as a "New chat with this page" deep-link button
+- `false` → disabled (hidden)
+- a string → enabled as a plain link to that href
+
+See [USAGE.md](USAGE.md#customising-the-ask-menu) for the authoring walkthrough.
 
 ## Markdown components
 

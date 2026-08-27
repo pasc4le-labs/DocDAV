@@ -2,6 +2,12 @@ title: Atlas
 description: Our flagship platform, powered by a live WebDAV drive.
 cover: https://images.pexels.com/photos/3861976/pexels-photo-3861976.jpeg?auto=compress&cs=tinysrgb&w=800
 password: atlaspass
+# Per-product override of the site-wide `copy:` defaults (docs.yaml wins).
+# Claude is re-enabled here (disabled site-wide) and Gemini is pointed at a
+# product-specific link.
+copy:
+  claude: true
+  gemini: https://gemini.example.test/atlas-custom
 pages:
   - title: Atlas — Overview
     source: index.md

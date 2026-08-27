@@ -43,6 +43,16 @@ truth.
 - **Only listed pages are served** — no frontmatter, no auto-include.
   Dangling `source` (file missing) is skipped with a `console.warn`, never
   breaking the product.
+- **`copy:` (Ask menu, content-driven):** optional `site.yaml.copy` map sets
+  the **site-wide default** for the page Copy/Ask menu; a product's
+  `docs.yaml.copy` **overrides it per key** (docs wins). Keyed by provider
+  slug (`copy.claude`, `copy.chatgpt`, `copy.gemini`, `copy.perplexity`);
+  value `false` = hidden, a string href = plain-link anchor, absent/`true` =
+  enabled deep-link button. No `copy:` anywhere → all providers on (default
+  behaviour). Effective per-product config = `{...siteCopy, ...docsCopy}`,
+  exposed via `ProductMeta.copy` → `[product]/+layout.server.ts` →
+  `PageMenu.svelte`. (There is no env override anymore — `AI_OVERRIDES` was
+  removed.)
 
 ## Formats
 

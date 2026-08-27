@@ -112,6 +112,46 @@ reminders:
 :::toggle Title  Collapsible section
 ```
 
+## Customising the Ask menu
+
+Every page has a **Copy / Ask** menu that can send the current page to an AI
+assistant (Claude, ChatGPT, Gemini, Perplexity…) as a fresh-chat prompt. Which
+assistants appear and how they open is controlled by a `copy:` map **in the
+content**, not the environment.
+
+A provider's value is one of:
+
+| Value             | Effect                                              |
+| ----------------- | --------------------------------------------------- |
+| *(missing)*       | enabled as "New chat with this page" (default)      |
+| `true`            | enabled as "New chat with this page"                |
+| `false`           | disabled — hidden from the menu                     |
+| `"https://…"`     | enabled as a plain link to that URL instead         |
+
+Set the **site-wide default** in the root `site.yaml`:
+
+```yaml
+# <docsRoot>/site.yaml
+products:
+  - atlas
+  - scorekeeper
+copy:
+  claude: false                                    # hide Claude everywhere
+  gemini: https://gemini.example.com/new           # Gemini → this link
+```
+
+A product can **override** that default per key in its `docs.yaml`
+(`docs.yaml` wins over `site.yaml`):
+
+```yaml
+# <docsRoot>/atlas/docs.yaml
+copy:
+  claude: true                                     # re-enable Claude here
+  gemini: https://gemini.example.com/atlas         # product-specific link
+```
+
+Unlisted providers keep their default (enabled) behaviour.
+
 ## Restricting access
 
 Passwords live in the content, not the environment.

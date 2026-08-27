@@ -2,9 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 4323;
 const WEBDAV_PORT = 8090;
-const OVERRIDE_PORT = 4324;
 const BASE = `http://127.0.0.1:${PORT}`;
-const OVERRIDE_BASE = `http://127.0.0.1:${OVERRIDE_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -45,24 +43,6 @@ export default defineConfig({
         WEBDAV_USER: 'demo',
         WEBDAV_PASS: 'secret',
         WEBDAV_TTL_MS: '5000',
-      },
-    },
-    // Second app instance with an AI link override set, to test that a
-    // provider with a fixed href override renders as an anchor.
-    {
-      command: `node build`,
-      url: OVERRIDE_BASE,
-      reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
-      env: {
-        ...process.env,
-        PORT: String(OVERRIDE_PORT),
-        HOST: '127.0.0.1',
-        WEBDAV_URL: `http://127.0.0.1:${WEBDAV_PORT}/`,
-        WEBDAV_USER: 'demo',
-        WEBDAV_PASS: 'secret',
-        WEBDAV_TTL_MS: '5000',
-        AI_OVERRIDES: '{"gemini":"https://gemini.example.test/custom"}',
       },
     },
   ],
